@@ -149,6 +149,8 @@ public class CSE712 {
 								if(!currentMove.IsCaptureMove())
 								{
 									currentGame.wMoves.add(currentMove);
+									
+									
 								}								
 							}
 							else
