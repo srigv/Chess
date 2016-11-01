@@ -4,8 +4,10 @@ public class Move {
 	public String MovePlayed;
 	public String EngineMove;
 	public int Eval;
+	public String Gid = "";
 	public String Depth;
 	public int NumLegalMoves;
+	public String FEN = "";
 	public List<MoveEvaluation> LegalMoves = new ArrayList<MoveEvaluation>();
 	
 	public int BenfordValue()

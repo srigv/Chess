@@ -1,15 +1,20 @@
 import java.io.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.regex.Pattern;
 public class CSE712 {
 	static List<Game> games = new ArrayList<Game>();
 	static BufferedWriter bw;
+	static BufferedWriter bw_fen;
 	static int[] benfordArray = new int[10];
 	static int[] zipfLawStats = new int[50];
 	static TreeMap<Integer,int[]> valueMap = new TreeMap<Integer,int[]>();
 	static TreeMap<Integer,int[]> lowRateValueMap = new TreeMap<Integer,int[]>();
 	static TreeMap<Integer,int[]> highRateValueMap = new TreeMap<Integer,int[]>();	
 	static TreeMap<Integer,double[]> pieceMoveMap = new TreeMap<Integer,double[]>();
+	static HashMap<String,ArrayList<MoveByFEN>> FENMap = new HashMap<String,ArrayList<MoveByFEN>>();
 	static TreeMap<Integer,ArrayList<Integer>> movesByRating = new TreeMap<Integer,ArrayList<Integer>>();
 	static String[] pieces = new String[]{"Bishop","King","Knight","Pawn","Queen","Rook"};
 	public static void PrintHelp()
@@ -25,6 +30,9 @@ public class CSE712 {
 		System.out.println("use this option to filter input files by regex(JAVA)");
 		
 		System.out.println("\nEg: --rf (?=.*2100)(?=.*aif) to filter all files contaning 2100 and aif strings");
+		
+		System.out.println("--fen");
+		System.out.println("use this option to use fen segregation piece Eg : --fen");
 		System.out.println("\n##########################################\n");
 	}
 	
@@ -48,6 +56,8 @@ public class CSE712 {
 			System.out.println("Insufficient number of arguments, min required 2 but found "+args.length);
 			return;
 		}
+		
+		Boolean fenFiles = false;
 		FileFilter filter = null;
 		for(int i = 0; i < args.length ; i++)
 		{
@@ -65,10 +75,16 @@ public class CSE712 {
 					filter = new MyFilter(args[i+1],"");
 				}				
 			}
+			else if(args[i].equals("--fen"))
+			{
+				fenFiles = true;
+			}
 		}
 		
 		System.out.println("Handling file "+args[0]);
 		File input = new File(args[0]);
+		
+		HashMap<String,FENbyUser> userMap = new HashMap<String,FENbyUser>();
 		
 		if(!input.exists())
 		{
@@ -94,8 +110,15 @@ public class CSE712 {
 		}
 		
 		System.out.println("Reading games..."+fileArray.length);
+		
+		FileOutputStream out_1 = new FileOutputStream(args[1]+"_FEN");
+		bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+		
 		FileOutputStream out = new FileOutputStream(args[1]);
 		bw = new BufferedWriter(new OutputStreamWriter(out));
+		
+		Pattern datePattern = Pattern.compile("[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}");
+		int gameCount = 0;
 	
 		for(File f : fileArray)
 		{
@@ -110,201 +133,302 @@ public class CSE712 {
 				System.out.println("Issue with "+f.getName()+" : "+exp.getMessage());
 			}
 			
-			try
+			if(!fenFiles)
 			{
-				String line;
-				Game currentGame = null;
-				Move currentMove = null;
-				while((line = br.readLine()) != null)
+				try
 				{
-					if(line.startsWith("[Game"))
+					String line;
+					Game currentGame = null;
+					Move currentMove = null;
+					while((line = br.readLine()) != null)
 					{
-						if(currentGame != null)
+						if(line.startsWith("[Game"))
 						{
-							TestBenfordLaw(currentGame);
-							TestZipfsLawForMoves(currentGame);
-							TestPieceMovement(currentGame);
-							SaveMoves(currentGame);
-							
-							//valueMap.put(currentGame.GetBEloRange(), currentGame.GetBEvaluation());
-							//valueMap.put(currentGame.GetWEloRange(), currentGame.GetWEvaluation());
-							//games.add(currentGame);
+							if(currentGame != null)
+							{
+								TestBenfordLaw(currentGame);
+								TestZipfsLawForMoves(currentGame);
+								TestPieceMovement(currentGame);
+								SaveMoves(currentGame);
+								
+								//valueMap.put(currentGame.GetBEloRange(), currentGame.GetBEvaluation());
+								//valueMap.put(currentGame.GetWEloRange(), currentGame.GetWEvaluation());
+								//games.add(currentGame);
+							}
+							currentGame = new Game();
 						}
-						currentGame = new Game();
-					}
-					else if(line.startsWith("[WhiteElo"))
-					{
-						currentGame.wElo = Integer.parseInt(GetValue(line));
-					}				
-					else if(line.startsWith("[BlackElo"))
-					{
-						currentGame.bElo = Integer.parseInt(GetValue(line));
-					}
-					else if(line.startsWith("[GID"))
-					{
-						if(currentMove != null && Math.abs(currentMove.Eval) <= 300)
+						else if(line.startsWith("[WhiteElo"))
 						{
-							if(currentMove.Turn.contains("-w"))
-							{
-								if(!currentMove.IsCaptureMove())
-								{
-									currentGame.wMoves.add(currentMove);
-									
-									
-								}								
-							}
-							else
-							{
-								if(!currentMove.IsCaptureMove())
-								{
-									currentGame.bMoves.add(currentMove);
-								}								
-							}
-						}						
-						currentMove = new Move();					
-					}				
-					else if(line.startsWith("[MovePlayed"))
-					{
-						String current = line.split(" ")[1];
-						currentMove.MovePlayed = current.substring(1, current.lastIndexOf("\""));
-					}				
-					else if(line.startsWith("[EngineMove"))
-					{
-						currentMove.EngineMove = GetValue(line);
-					}				
-					else if(line.startsWith("[Eval"))
-					{
-						currentMove.Eval = Integer.parseInt(GetValue(line));
-					}				
-					else if(line.startsWith("[Depth "))
-					{
-						currentMove.Depth = GetValue(line);
-					}
-					else if(line.startsWith("[NumLegalMoves"))
-					{
-						currentMove.NumLegalMoves = Integer.parseInt(GetValue(line));
-					}				
-					else if(line.startsWith("[Turn"))
-					{
-						currentMove.Turn = GetValue(line);
-					}
-					else if(line.startsWith("[LegalMoves "))
-					{
-						String err = null;
-						try
+							String elo = GetValue(line);
+							System.out.println("###"+elo);
+							currentGame.wElo = Integer.parseInt(elo.length() > 0 ? elo : "0");
+						}				
+						else if(line.startsWith("[BlackElo"))
 						{
-							if(currentMove.NumLegalMoves > 0)
+							String elo = GetValue(line);
+							//currentGame.wElo = Integer.parseInt(elo.length() > 0 ? elo : "0");
+							currentGame.bElo = Integer.parseInt(elo.length() > 0 ? elo : "0");
+						}
+						else if(line.startsWith("[GID"))
+						{
+							if(currentMove != null && Math.abs(currentMove.Eval) <= 300)
 							{
-								//skip 4 lines and start reading evaluation
-								int count = 4;
-								while(count > 0)
+								AddToFENMap(currentMove);
+								if(currentMove.Turn != null)
 								{
-									line = br.readLine();
-									count--;
+									//TODO this one needs fix
+									if(currentMove.Turn.contains("-w"))
+									{
+										if(!currentMove.IsCaptureMove())
+										{
+											currentGame.wMoves.add(currentMove);
+										}								
+									}
+									else
+									{
+										if(!currentMove.IsCaptureMove())
+										{
+											currentGame.bMoves.add(currentMove);
+										}								
+									}
 								}
 								
-								while(count < currentMove.NumLegalMoves && (line = br.readLine()) != null)
+							}						
+							currentMove = new Move();	
+							currentMove.Gid = GetQuotedValue(line);
+						}				
+						else if(line.startsWith("[MovePlayed"))
+						{
+							String current = line.split(" ")[1];
+							currentMove.MovePlayed = current.substring(1, current.lastIndexOf("\""));
+						}				
+						else if(line.startsWith("[EngineMove"))
+						{
+							currentMove.EngineMove = GetQuotedValue(line);
+						}				
+						else if(line.startsWith("[Eval"))
+						{
+							currentMove.Eval = Integer.parseInt(GetValue(line));
+						}				
+						else if(line.startsWith("[Depth "))
+						{
+							currentMove.Depth = GetQuotedValue(line);
+						}
+						else if(line.startsWith("[NumLegalMoves"))
+						{
+							currentMove.NumLegalMoves = Integer.parseInt(GetValue(line));
+						}				
+						else if(line.startsWith("[Turn") || line.startsWith("[MoveNo"))
+						{
+							currentMove.Turn = GetQuotedValue(line);
+						}
+						else if(line.startsWith("[FEN"))
+						{
+							currentMove.FEN = GetQuotedValue(line);
+						}
+						else if(line.startsWith("[LegalMoves "))
+						{
+							String err = null;
+							try
+							{
+								if(currentMove.NumLegalMoves > 0)
 								{
-									MoveEvaluation eval = new MoveEvaluation();
-									String[] moveArray = line.split("\\s+");
-									eval.Move = moveArray[0];
-									for(int i = 1; i < moveArray.length;i++)
+									//skip 4 lines and start reading evaluation
+									int count = 4;
+									while(count > 0)
 									{
-										try
-										{
-											err = FixEvaluation(moveArray[i]);
-											eval.Evaluation.add(Integer.parseInt(FixEvaluation(moveArray[i])));
-										}
-										catch(Exception exp)
-										{
-											//some issue with evaluation value
-											eval.Evaluation.add(0);
-										}
-										
+										line = br.readLine();
+										count--;
 									}
-									currentMove.LegalMoves.add(eval);	
-									count++;
+									
+									while(count < currentMove.NumLegalMoves && (line = br.readLine()) != null)
+									{
+										MoveEvaluation eval = new MoveEvaluation();
+										String[] moveArray = line.split("\\s+");
+										eval.Move = moveArray[0];
+										for(int i = 1; i < moveArray.length;i++)
+										{
+											try
+											{
+												err = FixEvaluation(moveArray[i]);
+												eval.Evaluation.add(Integer.parseInt(FixEvaluation(moveArray[i])));
+											}
+											catch(Exception exp)
+											{
+												//some issue with evaluation value
+												eval.Evaluation.add(0);
+											}
+											
+										}
+										currentMove.LegalMoves.add(eval);	
+										count++;
+									}
+								}
+							}
+							catch(Exception exp)
+							{
+								System.out.println(err);
+								System.out.println(Arrays.toString(exp.getStackTrace()));
+								//inner exception, continue with other moves
+							}
+							
+						}
+					}
+					
+					if(currentMove != null && Math.abs(currentMove.Eval) <= 300)
+					{
+						if(currentMove.Turn.contentEquals("-w"))
+						{
+							if(!currentMove.IsCaptureMove()){
+								currentGame.wMoves.add(currentMove);
+							}						
+						}
+						else
+						{
+							if(!currentMove.IsCaptureMove()){
+								currentGame.bMoves.add(currentMove);
+							}						
+						}
+					}
+					
+					if(currentGame != null)
+					{
+						TestBenfordLaw(currentGame);
+						TestZipfsLawForMoves(currentGame);
+						TestPieceMovement(currentGame);
+						SaveMoves(currentGame);
+						
+						//valueMap.put(currentGame.GetBEloRange(), currentGame.GetBEvaluation());
+						//valueMap.put(currentGame.GetWEloRange(), currentGame.GetWEvaluation());
+						//games.add(currentGame);
+						//no need to add games to memory, this saves memory
+					}
+					
+					System.out.println("..............");
+					
+					System.out.println("Done reading games...");
+					
+					
+				}
+				catch(Exception e)
+				{
+					System.out.println(Arrays.toString(e.getStackTrace()));
+				}
+				finally
+				{
+					if(br != null)
+					{
+						br.close();
+					}								
+				}
+			}
+			else
+			{
+				try
+				{
+					String line;
+					HashMap<GamePropEum,String> props = new HashMap<GamePropEum,String>();
+					Boolean isValidDate = false;
+					while((line = br.readLine()) != null)
+					{						
+						if(line.startsWith("[GameID"))
+						{
+							//System.out.print(".");
+							gameCount++;
+							if(gameCount % 25 == 0)
+							{
+								System.out.println("read "+gameCount+" games..");
+							}
+							isValidDate = false;
+							String str = GetQuotedValue(line);
+							props = Utils.GetGameProps(str);
+							if(datePattern.matcher(props.get(GamePropEum.TOURNMENT_DATE)).matches())
+							{
+								isValidDate = true;
+							}
+						}
+						else if(isValidDate)
+						{
+							String[] arr = Utils.FenDivided(line);
+							if(arr[1] != null)
+							{
+								DateFormat format = new SimpleDateFormat("yyyy.MM.dd");
+								Date date = format.parse(props.get(GamePropEum.TOURNMENT_DATE));
+								if(arr[1].equals("w"))
+								{
+									if(!userMap.containsKey(props.get(GamePropEum.GAME_WHITE_PLAYER)))
+									{
+										userMap.put(props.get(GamePropEum.GAME_WHITE_PLAYER), new FENbyUser(props.get(GamePropEum.GAME_WHITE_PLAYER)));
+									}
+									
+									String fen = arr[0]+" w "+arr[2];
+									userMap.get(props.get(GamePropEum.GAME_WHITE_PLAYER)).Addfen(date, fen);
+								}
+								else if(arr[1].equals("b"))
+								{
+									if(!userMap.containsKey(props.get(GamePropEum.GAME_BLACK_PLAYER)))
+									{
+										userMap.put(props.get(GamePropEum.GAME_BLACK_PLAYER), new FENbyUser(props.get(GamePropEum.GAME_BLACK_PLAYER)));
+									}
+									
+									String fen = arr[0]+" w "+arr[2];
+									userMap.get(props.get(GamePropEum.GAME_BLACK_PLAYER)).Addfen(date, fen);
 								}
 							}
 						}
-						catch(Exception exp)
-						{
-							System.out.println(err);
-							System.out.println(Arrays.toString(exp.getStackTrace()));
-							//inner exception, continue with other moves
-						}
-						
 					}
-				}
-				
-				if(currentMove != null && Math.abs(currentMove.Eval) <= 300)
-				{
-					if(currentMove.Turn.contentEquals("-w"))
-					{
-						if(!currentMove.IsCaptureMove()){
-							currentGame.wMoves.add(currentMove);
-						}						
-					}
-					else
-					{
-						if(!currentMove.IsCaptureMove()){
-							currentGame.bMoves.add(currentMove);
-						}						
-					}
-				}
-				
-				if(currentGame != null)
-				{
-					TestBenfordLaw(currentGame);
-					TestZipfsLawForMoves(currentGame);
-					TestPieceMovement(currentGame);
-					SaveMoves(currentGame);
 					
-					//valueMap.put(currentGame.GetBEloRange(), currentGame.GetBEvaluation());
-					//valueMap.put(currentGame.GetWEloRange(), currentGame.GetWEvaluation());
-					//games.add(currentGame);
-					//no need to add games to memory, this saves memory
 				}
-				
-				System.out.println("..............");
-				
-				System.out.println("Done reading games...");
-				
-				
-			}
-			catch(Exception e)
-			{
-				System.out.println(Arrays.toString(e.getStackTrace()));
-			}
-			finally
-			{
-				if(br != null)
+				catch(Exception e)
 				{
-					br.close();
-				}								
+					System.out.println(Arrays.toString(e.getStackTrace()));
+				}
+				finally
+				{
+					if(br != null)
+					{
+						br.close();
+					}								
+				}
+			}		
+			
+		}
+		
+		if(!fenFiles)
+		{
+			bw.write("#### Benford's law test ###\n");
+			
+			System.out.println("Testing Benford's law....");
+			PrintTestResults(benfordArray);
+			System.out.println("Done, writing results to "+args[1]);
+			
+			bw.write("#### Zipf's law test ###\n");
+			
+			System.out.println("Testing Zip's law....");
+			
+			System.out.println("Testing Zipf's law....");
+			PrintTestResults(valueMap);
+			System.out.println("Done, writing results to "+args[1]);
+			
+			System.out.println("Testing Piece frequency ....");
+			PrintTestResults1(pieceMoveMap);
+			System.out.println("Done, writing results to "+args[1]);
+			
+			System.out.println("Printing moves on to file");
+			SaveMoveInfo();
+		}
+		else
+		{
+			System.out.println("Saving FEN info");
+			for(Map.Entry<String, FENbyUser> pair : userMap.entrySet())
+			{
+				//bw_fen.write(pair.getKey()+"\n");
+				bw_fen.write(pair.getValue().toString());
+				//bw_fen.newLine();
 			}
 		}
 		
-		bw.write("#### Benford's law test ###\n");
 		
-		System.out.println("Testing Benford's law....");
-		PrintTestResults(benfordArray);
-		System.out.println("Done, writing results to "+args[1]);
-		
-		bw.write("#### Zipf's law test ###\n");
-		
-		System.out.println("Testing Zip's law....");
-		
-		System.out.println("Testing Zipf's law....");
-		PrintTestResults(valueMap);
-		System.out.println("Done, writing results to "+args[1]);
-		
-		System.out.println("Testing Piece frequency ....");
-		PrintTestResults1(pieceMoveMap);
-		System.out.println("Done, writing results to "+args[1]);
-		
-		System.out.println("Printing moves on to file");
-		SaveMoveInfo();
 		
 //		bw.write("#### Zipf's law test - when played Against Higher rated ###\n");
 //		System.out.println("Testing Zipf's law....when played Against Higher rated");
@@ -317,12 +441,39 @@ public class CSE712 {
 //		System.out.println("Done, writing results to "+args[1]);
 		
 		bw.close();
+		bw_fen.close();
+	}
+	
+	public static void AddToFENMap(Move m)
+	{
+		if(m.FEN.length() > 0 && m.Gid.length() > 0)
+		{
+			if(!FENMap.containsKey(m.FEN))
+			{
+				FENMap.put(m.FEN, new ArrayList<MoveByFEN>());
+			}
+			
+			FENMap.get(m.FEN).add(new MoveByFEN(m.Gid, m.FEN));
+		}
 	}
 	
 	public static String GetValue(String inp)
 	{
-		String current = inp.split("\"")[1];
+		String current = inp.replaceAll("[^0-9]", "");
 		return current;
+	}
+	
+	public static String GetQuotedValue(String inp)
+	{
+		if(inp.contains("\""))
+		{
+			if(inp.indexOf('"', inp.indexOf('"')+1) > -1)
+			{
+				return inp.substring(inp.indexOf('"')+1,inp.indexOf('"', inp.indexOf('"')+1));
+			}			
+		}
+		
+		return "";
 	}
 	
 	public static void SaveMoves(Game g)
