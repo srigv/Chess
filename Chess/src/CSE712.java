@@ -85,6 +85,7 @@ public class CSE712 {
 		File input = new File(args[0]);
 		
 		HashMap<String,FENbyUser> userMap = new HashMap<String,FENbyUser>();
+		HashMap<FEN,Integer> fenCountMap = new HashMap<FEN,Integer>();
 		
 		if(!input.exists())
 		{
@@ -349,32 +350,42 @@ public class CSE712 {
 						}
 						else if(isValidDate)
 						{
-							String[] arr = Utils.FenDivided(line);
-							if(arr[1] != null)
+							FEN fen = new FEN(line);
+							if(fen.isValidFen())
 							{
-								DateFormat format = new SimpleDateFormat("yyyy.MM.dd");
-								Date date = format.parse(props.get(GamePropEum.TOURNMENT_DATE));
-								if(arr[1].equals("w"))
+								if(!fenCountMap.containsKey(fen))
 								{
-									if(!userMap.containsKey(props.get(GamePropEum.GAME_WHITE_PLAYER)))
-									{
-										userMap.put(props.get(GamePropEum.GAME_WHITE_PLAYER), new FENbyUser(props.get(GamePropEum.GAME_WHITE_PLAYER)));
-									}
-									
-									String fen = arr[0]+" w "+arr[2];
-									userMap.get(props.get(GamePropEum.GAME_WHITE_PLAYER)).Addfen(date, fen);
+									fenCountMap.put(fen, 0);
 								}
-								else if(arr[1].equals("b"))
-								{
-									if(!userMap.containsKey(props.get(GamePropEum.GAME_BLACK_PLAYER)))
-									{
-										userMap.put(props.get(GamePropEum.GAME_BLACK_PLAYER), new FENbyUser(props.get(GamePropEum.GAME_BLACK_PLAYER)));
-									}
-									
-									String fen = arr[0]+" w "+arr[2];
-									userMap.get(props.get(GamePropEum.GAME_BLACK_PLAYER)).Addfen(date, fen);
-								}
+								fen.count = fenCountMap.get(fen)+1;
+								fenCountMap.put(fen, fenCountMap.get(fen)+1) ;
 							}
+//							String[] arr = Utils.FenDivided(line);
+//							if(arr[1] != null)
+//							{
+//								DateFormat format = new SimpleDateFormat("yyyy.MM.dd");
+//								Date date = format.parse(props.get(GamePropEum.TOURNMENT_DATE));
+//								if(arr[1].equals("w"))
+//								{
+//									if(!userMap.containsKey(props.get(GamePropEum.GAME_WHITE_PLAYER)))
+//									{
+//										userMap.put(props.get(GamePropEum.GAME_WHITE_PLAYER), new FENbyUser(props.get(GamePropEum.GAME_WHITE_PLAYER)));
+//									}
+//									
+//									String fen = arr[0]+" w "+arr[2];
+//									userMap.get(props.get(GamePropEum.GAME_WHITE_PLAYER)).Addfen(date, fen);
+//								}
+//								else if(arr[1].equals("b"))
+//								{
+//									if(!userMap.containsKey(props.get(GamePropEum.GAME_BLACK_PLAYER)))
+//									{
+//										userMap.put(props.get(GamePropEum.GAME_BLACK_PLAYER), new FENbyUser(props.get(GamePropEum.GAME_BLACK_PLAYER)));
+//									}
+//									
+//									String fen = arr[0]+" w "+arr[2];
+//									userMap.get(props.get(GamePropEum.GAME_BLACK_PLAYER)).Addfen(date, fen);
+//								}
+//							}
 						}
 					}
 					
@@ -420,11 +431,28 @@ public class CSE712 {
 		else
 		{
 			System.out.println("Saving FEN info");
-			for(Map.Entry<String, FENbyUser> pair : userMap.entrySet())
+//			for(Map.Entry<String, FENbyUser> pair : fen.entrySet())
+//			{
+//				//bw_fen.write(pair.getKey()+"\n");
+//				bw_fen.write(pair.getValue().toString());
+//				//bw_fen.newLine();
+//			}
+			
+			FENCountQueue queue = new FENCountQueue();
+			for(Map.Entry<FEN, Integer> pair : fenCountMap.entrySet())
 			{
-				//bw_fen.write(pair.getKey()+"\n");
-				bw_fen.write(pair.getValue().toString());
-				//bw_fen.newLine();
+				pair.getKey().count = pair.getValue();
+				queue.queue.add(pair.getKey());
+//				bw_fen.write(pair.getKey().justFen()+"  ");
+//				bw_fen.write(pair.getValue().toString());
+//				bw_fen.newLine();
+			}
+			
+			while(!queue.queue.isEmpty())
+			{
+				FEN ele = queue.queue.poll();
+				bw_fen.write(ele.justFen()+"  "+ele.count);
+				bw_fen.newLine();
 			}
 		}
 		

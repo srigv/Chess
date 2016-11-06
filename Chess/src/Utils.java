@@ -1,7 +1,7 @@
 import java.util.*;
 
 public class Utils {
-	
+	public static HashMap<String,Integer> symbolTable = new HashMap<String,Integer>();
 	public static HashMap<GamePropEum,String> GetGameProps(String str)
 	{
 		HashMap<GamePropEum,String> map = new HashMap<GamePropEum,String>();
@@ -48,14 +48,30 @@ public class Utils {
 	public static String[] FenDivided(String str)
 	{
 		String[] arr = new String[3];
-		String[] temp = str.split(" ");
-		if(temp.length >= 3)
+		try
 		{
-			for(int i = 0 ; i < 3 ; i++)
+			String[] temp = str.substring(0, str.indexOf('-')).trim().split(" ");
+			if(temp.length >= 3)
 			{
-				arr[i] = temp[i];
+				for(int i = 0 ; i < 3 ; i++)
+				{
+					arr[i] = temp[i];
+				}
 			}
 		}
+		catch(Exception e)
+		{
+			
+			String[] temp = str.split(" ");
+			if(temp.length >= 3)
+			{
+				for(int i = 0 ; i < 3 ; i++)
+				{
+					arr[i] = temp[i];
+				}
+			}
+		}
+		
 		
 		return arr;
 	}
