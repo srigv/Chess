@@ -17,6 +17,8 @@ public class CSE712 {
 	static HashMap<String,ArrayList<MoveByFEN>> FENMap = new HashMap<String,ArrayList<MoveByFEN>>();
 	static TreeMap<Integer,ArrayList<Integer>> movesByRating = new TreeMap<Integer,ArrayList<Integer>>();
 	static String[] pieces = new String[]{"Bishop","King","Knight","Pawn","Queen","Rook"};
+	
+	static HashMap<FEN,Integer> fenCountMap = new HashMap<FEN,Integer>();
 	public static void PrintHelp()
 	{
 		System.out.println("\n##########################################\n");
@@ -59,6 +61,8 @@ public class CSE712 {
 		
 		Boolean fenFiles = false;
 		FileFilter filter = null;
+		int fileCount = 0;
+		int doneFileCount = 0;
 		for(int i = 0; i < args.length ; i++)
 		{
 			if(args[i].equals("--rf"))
@@ -84,8 +88,10 @@ public class CSE712 {
 		System.out.println("Handling file "+args[0]);
 		File input = new File(args[0]);
 		
-		HashMap<String,FENbyUser> userMap = new HashMap<String,FENbyUser>();
-		HashMap<FEN,Integer> fenCountMap = new HashMap<FEN,Integer>();
+		
+		int fenPartFileCount = 1;
+		//HashMap<String,FENbyUser> userMap = new HashMap<String,FENbyUser>();
+		
 		
 		if(!input.exists())
 		{
@@ -112,8 +118,7 @@ public class CSE712 {
 		
 		System.out.println("Reading games..."+fileArray.length);
 		
-		FileOutputStream out_1 = new FileOutputStream(args[1]+"_FEN");
-		bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+		fileCount = fileArray.length;
 		
 		FileOutputStream out = new FileOutputStream(args[1]);
 		bw = new BufferedWriter(new OutputStreamWriter(out));
@@ -327,6 +332,8 @@ public class CSE712 {
 			{
 				try
 				{
+					doneFileCount++;
+					fileCount--;
 					String line;
 					HashMap<GamePropEum,String> props = new HashMap<GamePropEum,String>();
 					Boolean isValidDate = false;
@@ -336,10 +343,30 @@ public class CSE712 {
 						{
 							//System.out.print(".");
 							gameCount++;
-							if(gameCount % 25 == 0)
+							if(gameCount % 10000 == 0)
 							{
 								System.out.println("read "+gameCount+" games..");
+								System.gc();
+								int mb = 1024*1024;
+								Runtime runtime = Runtime.getRuntime();
+								System.out.println("##### Heap utilization statistics [MB] #####");
+								
+								//Print used memory
+								System.out.println("Used Memory:" + (runtime.totalMemory() - runtime.freeMemory()) / mb);
+
+								//Print free memory
+								System.out.println("Free Memory:" + runtime.freeMemory() / mb);
+								
+								//Print total available memory
+								System.out.println("Total Memory:" + runtime.totalMemory() / mb);
+
+								//Print Maximum available memory
+								System.out.println("Max Memory:" + runtime.maxMemory() / mb);
+								System.out.println("done with "+doneFileCount+" remaining "+fileCount);
 							}
+							
+							
+							
 							isValidDate = false;
 							String str = GetQuotedValue(line);
 							props = Utils.GetGameProps(str);
@@ -360,6 +387,15 @@ public class CSE712 {
 								fen.count = fenCountMap.get(fen)+1;
 								fenCountMap.put(fen, fenCountMap.get(fen)+1) ;
 							}
+							if(fenCountMap.size() == 100000)
+							{
+								FileOutputStream out_1 = new FileOutputStream(args[1]+"_FEN_"+fenPartFileCount+".txt");
+								bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+								WriteFENToFile(bw_fen);
+								fenPartFileCount++;
+								fenCountMap.clear();
+							}
+							
 //							String[] arr = Utils.FenDivided(line);
 //							if(arr[1] != null)
 //							{
@@ -438,22 +474,14 @@ public class CSE712 {
 //				//bw_fen.newLine();
 //			}
 			
-			FENCountQueue queue = new FENCountQueue();
-			for(Map.Entry<FEN, Integer> pair : fenCountMap.entrySet())
-			{
-				pair.getKey().count = pair.getValue();
-				queue.queue.add(pair.getKey());
-//				bw_fen.write(pair.getKey().justFen()+"  ");
-//				bw_fen.write(pair.getValue().toString());
-//				bw_fen.newLine();
-			}
 			
-			while(!queue.queue.isEmpty())
-			{
-				FEN ele = queue.queue.poll();
-				bw_fen.write(ele.justFen()+"  "+ele.count);
-				bw_fen.newLine();
-			}
+			
+			FileOutputStream out_1 = new FileOutputStream(args[1]+"_FEN_"+fenPartFileCount);
+			bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+			WriteFENToFile(bw_fen);
+			fenPartFileCount++;
+			fenCountMap.clear();		
+			
 		}
 		
 		
@@ -469,9 +497,39 @@ public class CSE712 {
 //		System.out.println("Done, writing results to "+args[1]);
 		
 		bw.close();
-		bw_fen.close();
+		//bw_fen.close();
 	}
 	
+	
+	public static void WriteFENToFile(BufferedWriter bw)
+	{
+		FENCountQueue queue = new FENCountQueue();
+		for(Map.Entry<FEN, Integer> pair : fenCountMap.entrySet())
+		{
+			pair.getKey().count = pair.getValue();
+			queue.queue.add(pair.getKey());
+//			bw_fen.write(pair.getKey().justFen()+"  ");
+//			bw_fen.write(pair.getValue().toString());
+//			bw_fen.newLine();
+		}
+		try
+		{
+			while(!queue.queue.isEmpty())
+			{
+				FEN ele = queue.queue.poll();
+				bw.write(ele.justFen()+"  "+ele.count);
+				bw.newLine();
+			}
+			bw.close();
+		}
+		catch(Exception e)
+		{
+			System.out.println(e.getMessage());
+		}
+		
+		
+		
+	}
 	public static void AddToFENMap(Move m)
 	{
 		if(m.FEN.length() > 0 && m.Gid.length() > 0)
