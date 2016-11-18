@@ -3,22 +3,37 @@ public class FEN {
 	String FenComplete;
 	String JustFen;
 	int count;
+	int moveNum = 0;
 	
 	public FEN(String str)
 	{
 		this.FenComplete = str;
 		String[] s = Utils.FenDivided(FenComplete);
-		if(s.length == 3)
+		if(s.length == 4 && s[0] != null && s[1] != null && s[2] != null && s[3] != null)
 		{
 			IsValidFen = true;
-			JustFen = s[0]+" w "+s[2];			
+			JustFen = s[0]+" w "+s[2];
+			moveNum = Integer.parseInt(s[3]);
 		}
 	}
+	
+	public FEN(String str, int count)
+	{
+		this.JustFen = str;
+		this.count = count;
+	}
+	
 	Boolean IsValidFen = false;
+	
+	
+	public int MoveNum()
+	{
+		return moveNum;
+	}
 	
 	public Boolean isValidFen()
 	{
-		return IsValidFen;
+		return IsValidFen && moveNum > 8;
 	}
 	
 	public String justFen()

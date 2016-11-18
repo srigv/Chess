@@ -47,17 +47,29 @@ public class Utils {
 	
 	public static String[] FenDivided(String str)
 	{
-		String[] arr = new String[3];
+		String[] arr = new String[4];
 		try
 		{
 			String[] temp = str.substring(0, str.indexOf('-')).trim().split(" ");
+			String num = "";
+			if(str.indexOf("-", str.indexOf('-')+1) > -1)
+			{
+				num = str.substring(str.indexOf('-')+1).trim().split(" ")[1].trim();
+			}
+			else
+			{
+				num = str.substring(str.indexOf('-')).trim().split(" ")[1].trim();
+			}
+			
 			if(temp.length >= 3)
 			{
 				for(int i = 0 ; i < 3 ; i++)
 				{
-					arr[i] = temp[i];
+					arr[i] = temp[i].trim();
 				}
 			}
+			
+			arr[3] = num;
 		}
 		catch(Exception e)
 		{

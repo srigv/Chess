@@ -477,14 +477,65 @@ public class CSE712 {
 			
 			
 			
-			FileOutputStream out_1 = new FileOutputStream(args[1]+"_FEN_"+fenPartFileCount);
+			FileOutputStream out_1 = new FileOutputStream(args[1]+"_FEN_"+fenPartFileCount+".txt");
 			bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
 			WriteFENToFile(bw_fen);
 			fenPartFileCount++;
-			fenCountMap.clear();		
+			fenCountMap.clear();	
+			fenCountMap.clear();
 			
+			bw_fen.close();
 		}
 		
+		HashMap<String,Integer> finalMap = new HashMap<String,Integer>();
+		
+		File outFileDir = new File((new File(args[1]).getParent()));
+		File[]  outFiles = outFileDir.listFiles(new MyFilter(".txt","(?=.*"+(new File(args[1])).getName()+"_FEN*)"));
+		for(File f : outFiles)
+		{
+			BufferedReader br = null;
+			try
+			{
+				 br = new BufferedReader(new FileReader(f));
+			}
+			catch(Exception exp)
+			{
+				System.out.println("Issue with "+f.getName()+" : "+exp.getMessage());
+			}
+			
+			String line = null;
+			while((line = br.readLine()) != null)
+			{
+				String[] arr = line.split("  ");
+				try {
+					if(!finalMap.containsKey(arr[0]))
+					{
+						finalMap.put(arr[0], 0);
+					}
+					finalMap.put(arr[0], finalMap.get(arr[0])+ Integer.parseInt(arr[1]));
+				} catch (Exception e) {
+					// TODO: handle exception
+				}
+			}			
+		}
+		
+		try
+		{
+			//Date dt = new Date();
+			File writeDir = new File(outFileDir.getAbsolutePath()+"\\"+Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE));
+			if(!writeDir.exists()){
+				writeDir.mkdirs();
+			}
+			FileOutputStream out_1 = new FileOutputStream(writeDir.getAbsolutePath()+"\\FEN"+".txt");
+			bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+			WriteFENToFile(bw_fen,finalMap);
+			bw_fen.close();
+			finalMap.clear();
+		}
+		catch(Exception e)
+		{
+			System.out.print("Couldn't write to file "+e.getMessage());
+		}
 		
 		
 //		bw.write("#### Zipf's law test - when played Against Higher rated ###\n");
@@ -527,10 +578,33 @@ public class CSE712 {
 		{
 			System.out.println(e.getMessage());
 		}
-		
-		
-		
 	}
+	
+	public static void WriteFENToFile(BufferedWriter bw, HashMap<String,Integer> map)
+	{
+		FENCountQueue queue = new FENCountQueue();
+		for(Map.Entry<String, Integer> pair : map.entrySet())
+		{
+			FEN fen = new FEN(pair.getKey(),pair.getValue());
+			queue.queue.add(fen);
+		}
+		try
+		{
+			while(!queue.queue.isEmpty())
+			{
+				FEN ele = queue.queue.poll();
+				bw.write(ele.justFen()+"  "+ele.count);
+				bw.newLine();
+			}
+			bw.close();
+		}
+		catch(Exception e)
+		{
+			System.out.println(e.getMessage());
+		}
+	}
+	
+	
 	public static void AddToFENMap(Move m)
 	{
 		if(m.FEN.length() > 0 && m.Gid.length() > 0)
