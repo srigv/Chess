@@ -4,6 +4,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
+import java.nio.file.Paths;
+
 public class CSE712 {
 	static List<Game> games = new ArrayList<Game>();
 	static BufferedWriter bw;
@@ -18,7 +20,7 @@ public class CSE712 {
 	static TreeMap<Integer,ArrayList<Integer>> movesByRating = new TreeMap<Integer,ArrayList<Integer>>();
 	static String[] pieces = new String[]{"Bishop","King","Knight","Pawn","Queen","Rook"};
 	
-	static HashMap<FEN,Integer> fenCountMap = new HashMap<FEN,Integer>();
+	static HashMap<FEN,FENProp> fenCountMap = new HashMap<FEN,FENProp>();
 	public static void PrintHelp()
 	{
 		System.out.println("\n##########################################\n");
@@ -63,6 +65,10 @@ public class CSE712 {
 		FileFilter filter = null;
 		int fileCount = 0;
 		int doneFileCount = 0;
+		File fenWriteDir = null;
+		File fenOutDir = null;
+		File fenTempDir = null;
+		
 		for(int i = 0; i < args.length ; i++)
 		{
 			if(args[i].equals("--rf"))
@@ -82,6 +88,17 @@ public class CSE712 {
 			else if(args[i].equals("--fen"))
 			{
 				fenFiles = true;
+				fenOutDir = new File((new File(args[1]).getParent()) == null ? Paths.get(".").toAbsolutePath().normalize().toString() : (new File(args[1]).getParent()));
+				fenWriteDir = new File(fenOutDir.getAbsolutePath()+File.separator+Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE)+"_"+Calendar.getInstance().get(Calendar.HOUR)+"_"+Calendar.getInstance().get(Calendar.MINUTE));
+				fenTempDir = new File(fenOutDir.getAbsolutePath()+File.separator+Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE)+"_"+Calendar.getInstance().get(Calendar.HOUR)+"_"+Calendar.getInstance().get(Calendar.MINUTE)+File.separator+"Temp");
+				
+				if(!fenWriteDir.exists()){
+					fenWriteDir.mkdirs();
+				}
+				
+				if(!fenTempDir.exists()){
+					fenTempDir.mkdirs();
+				}
 			}
 		}
 		
@@ -155,11 +172,7 @@ public class CSE712 {
 								TestBenfordLaw(currentGame);
 								TestZipfsLawForMoves(currentGame);
 								TestPieceMovement(currentGame);
-								SaveMoves(currentGame);
-								
-								//valueMap.put(currentGame.GetBEloRange(), currentGame.GetBEvaluation());
-								//valueMap.put(currentGame.GetWEloRange(), currentGame.GetWEvaluation());
-								//games.add(currentGame);
+								SaveMoves(currentGame);								
 							}
 							currentGame = new Game();
 						}
@@ -303,10 +316,6 @@ public class CSE712 {
 						TestZipfsLawForMoves(currentGame);
 						TestPieceMovement(currentGame);
 						SaveMoves(currentGame);
-						
-						//valueMap.put(currentGame.GetBEloRange(), currentGame.GetBEvaluation());
-						//valueMap.put(currentGame.GetWEloRange(), currentGame.GetWEvaluation());
-						//games.add(currentGame);
 						//no need to add games to memory, this saves memory
 					}
 					
@@ -382,46 +391,26 @@ public class CSE712 {
 							{
 								if(!fenCountMap.containsKey(fen))
 								{
-									fenCountMap.put(fen, 0);
+									fenCountMap.put(fen, new FENProp());
 								}
-								fen.count = fenCountMap.get(fen)+1;
-								fenCountMap.put(fen, fenCountMap.get(fen)+1) ;
+								//fen.count = fenCountMap.get(fen)+1;
+								if(props.containsKey(GamePropEum.GAME_ID))
+								{
+									FENProp fProp = fenCountMap.get(fen);
+									fProp.UpdateTurnCount(fen.moveNum);
+									fProp.UpdateFENProp(1, props.get(GamePropEum.GAME_ID), props.get(GamePropEum.GAME_RESULT));
+									fenCountMap.put(fen, fProp) ;
+								}
+								
 							}
 							if(fenCountMap.size() == 100000)
 							{
-								FileOutputStream out_1 = new FileOutputStream(args[1]+"_FEN_"+fenPartFileCount+".txt");
+								FileOutputStream out_1 = new FileOutputStream(fenTempDir+File.separator+"FEN_"+fenPartFileCount+".txt");
 								bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
 								WriteFENToFile(bw_fen);
 								fenPartFileCount++;
 								fenCountMap.clear();
 							}
-							
-//							String[] arr = Utils.FenDivided(line);
-//							if(arr[1] != null)
-//							{
-//								DateFormat format = new SimpleDateFormat("yyyy.MM.dd");
-//								Date date = format.parse(props.get(GamePropEum.TOURNMENT_DATE));
-//								if(arr[1].equals("w"))
-//								{
-//									if(!userMap.containsKey(props.get(GamePropEum.GAME_WHITE_PLAYER)))
-//									{
-//										userMap.put(props.get(GamePropEum.GAME_WHITE_PLAYER), new FENbyUser(props.get(GamePropEum.GAME_WHITE_PLAYER)));
-//									}
-//									
-//									String fen = arr[0]+" w "+arr[2];
-//									userMap.get(props.get(GamePropEum.GAME_WHITE_PLAYER)).Addfen(date, fen);
-//								}
-//								else if(arr[1].equals("b"))
-//								{
-//									if(!userMap.containsKey(props.get(GamePropEum.GAME_BLACK_PLAYER)))
-//									{
-//										userMap.put(props.get(GamePropEum.GAME_BLACK_PLAYER), new FENbyUser(props.get(GamePropEum.GAME_BLACK_PLAYER)));
-//									}
-//									
-//									String fen = arr[0]+" w "+arr[2];
-//									userMap.get(props.get(GamePropEum.GAME_BLACK_PLAYER)).Addfen(date, fen);
-//								}
-//							}
 						}
 					}
 					
@@ -468,16 +457,8 @@ public class CSE712 {
 		else
 		{
 			System.out.println("Saving FEN info");
-//			for(Map.Entry<String, FENbyUser> pair : fen.entrySet())
-//			{
-//				//bw_fen.write(pair.getKey()+"\n");
-//				bw_fen.write(pair.getValue().toString());
-//				//bw_fen.newLine();
-//			}
 			
-			
-			
-			FileOutputStream out_1 = new FileOutputStream(args[1]+"_FEN_"+fenPartFileCount+".txt");
+			FileOutputStream out_1 = new FileOutputStream(fenTempDir+File.separator+"FEN_"+fenPartFileCount+".txt");
 			bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
 			WriteFENToFile(bw_fen);
 			fenPartFileCount++;
@@ -485,57 +466,63 @@ public class CSE712 {
 			fenCountMap.clear();
 			
 			bw_fen.close();
-		}
-		
-		HashMap<String,Integer> finalMap = new HashMap<String,Integer>();
-		
-		File outFileDir = new File((new File(args[1]).getParent()));
-		File[]  outFiles = outFileDir.listFiles(new MyFilter(".txt","(?=.*"+(new File(args[1])).getName()+"_FEN*)"));
-		for(File f : outFiles)
-		{
-			BufferedReader br = null;
-			try
+			
+			
+			HashMap<String,FENProp> finalMap = new HashMap<String,FENProp>();
+			
+			//File[]  outFiles = fenTempDir.listFiles(new MyFilter(".txt","(?=.*"+(new File(args[1])).getName()+"_FEN*)"));
+			File[]  outFiles = fenTempDir.listFiles();
+			for(File f : outFiles)
 			{
-				 br = new BufferedReader(new FileReader(f));
-			}
-			catch(Exception exp)
-			{
-				System.out.println("Issue with "+f.getName()+" : "+exp.getMessage());
+				BufferedReader br = null;
+				try
+				{
+					 br = new BufferedReader(new FileReader(f));
+				}
+				catch(Exception exp)
+				{
+					System.out.println("Issue with "+f.getName()+" : "+exp.getMessage());
+				}
+				
+				String line = null;
+				String currFen = "";
+				while((line = br.readLine()) != null)
+				{
+					if(line.startsWith("$FEN$"))
+					{
+						String[] arr = line.substring(5).split(":");
+						currFen = arr[0];
+						try {
+							if(!finalMap.containsKey(arr[0]))
+							{
+								finalMap.put(arr[0], new FENProp());
+							}
+							finalMap.put(arr[0], finalMap.get(arr[0])+ Integer.parseInt(arr[1]));
+						} catch (Exception e) {
+							// TODO: handle exception
+						}
+					}
+					
+					
+				}			
 			}
 			
-			String line = null;
-			while((line = br.readLine()) != null)
+			try
 			{
-				String[] arr = line.split("  ");
-				try {
-					if(!finalMap.containsKey(arr[0]))
-					{
-						finalMap.put(arr[0], 0);
-					}
-					finalMap.put(arr[0], finalMap.get(arr[0])+ Integer.parseInt(arr[1]));
-				} catch (Exception e) {
-					// TODO: handle exception
-				}
-			}			
+				
+				out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"FEN"+".txt");
+				bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+				WriteFENToFile(bw_fen,finalMap);
+				bw_fen.close();
+				finalMap.clear();
+			}
+			catch(Exception e)
+			{
+				System.out.print("Couldn't write to file "+e.getMessage());
+			}
 		}
 		
-		try
-		{
-			//Date dt = new Date();
-			File writeDir = new File(outFileDir.getAbsolutePath()+"\\"+Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE));
-			if(!writeDir.exists()){
-				writeDir.mkdirs();
-			}
-			FileOutputStream out_1 = new FileOutputStream(writeDir.getAbsolutePath()+"\\FEN"+".txt");
-			bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
-			WriteFENToFile(bw_fen,finalMap);
-			bw_fen.close();
-			finalMap.clear();
-		}
-		catch(Exception e)
-		{
-			System.out.print("Couldn't write to file "+e.getMessage());
-		}
+		
 		
 		
 //		bw.write("#### Zipf's law test - when played Against Higher rated ###\n");
@@ -556,20 +543,31 @@ public class CSE712 {
 	public static void WriteFENToFile(BufferedWriter bw)
 	{
 		FENCountQueue queue = new FENCountQueue();
-		for(Map.Entry<FEN, Integer> pair : fenCountMap.entrySet())
+		for(Map.Entry<FEN, FENProp> pair : fenCountMap.entrySet())
 		{
-			pair.getKey().count = pair.getValue();
+			pair.getKey().count = pair.getValue().count;
+			pair.getKey().GameResultMap = pair.getValue().gameResultMap;
+			pair.getKey().TurnWiseCount = pair.getValue().turnWiseCount;
 			queue.queue.add(pair.getKey());
-//			bw_fen.write(pair.getKey().justFen()+"  ");
-//			bw_fen.write(pair.getValue().toString());
-//			bw_fen.newLine();
 		}
 		try
 		{
 			while(!queue.queue.isEmpty())
 			{
 				FEN ele = queue.queue.poll();
-				bw.write(ele.justFen()+"  "+ele.count);
+				bw.write("$FEN$"+ele.justFen()+":"+ele.count);
+				bw.newLine();
+				bw.write("$GAME_RESULT$");
+				for(Map.Entry<String, String> pair : ele.GameResultMap.entrySet())
+				{
+					bw.write(pair.getKey()+":"+pair.getValue()+",");
+				}
+				bw.newLine();
+				bw.write("$TURNWISE_COUNT$");
+				for(Map.Entry<Integer, Integer> pair : ele.TurnWiseCount.entrySet())
+				{
+					bw.write(pair.getKey()+":"+pair.getValue()+",");
+				}
 				bw.newLine();
 			}
 			bw.close();

@@ -1,9 +1,12 @@
+import java.util.*;
 
 public class FEN {
 	String FenComplete;
 	String JustFen;
 	int count;
 	int moveNum = 0;
+	HashMap<String,String> GameResultMap = new HashMap<String,String>();
+	HashMap<Integer,Integer> TurnWiseCount = new HashMap<Integer,Integer>();
 	
 	public FEN(String str)
 	{

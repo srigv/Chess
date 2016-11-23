@@ -6,6 +6,9 @@ public class Utils {
 	{
 		HashMap<GamePropEum,String> map = new HashMap<GamePropEum,String>();
 		String[] arr = str.split(";");
+		
+		map.put(GamePropEum.GAME_ID, str);
+		
 		if(arr.length == 7)
 		{
 			for(int i = 0; i < arr.length ; i++)
