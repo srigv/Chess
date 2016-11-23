@@ -17,15 +17,15 @@ public class FENProp {
 		gameResultMap.put(GameId,result);
 	}
 	
-	public void UpdateTurnCount(int turnNum)
+	public void UpdateTurnCount(int turnNum,int count)
 	{
 		if(turnWiseCount.containsKey(turnNum))
 		{
-			turnWiseCount.put(turnNum, turnWiseCount.get(turnNum)+1);
+			turnWiseCount.put(turnNum, turnWiseCount.get(turnNum)+count);
 		}
 		else
 		{
-			turnWiseCount.put(turnNum, 1);
+			turnWiseCount.put(turnNum, count);
 		}
 	}
 	

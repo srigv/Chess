@@ -397,7 +397,7 @@ public class CSE712 {
 								if(props.containsKey(GamePropEum.GAME_ID))
 								{
 									FENProp fProp = fenCountMap.get(fen);
-									fProp.UpdateTurnCount(fen.moveNum);
+									fProp.UpdateTurnCount(fen.moveNum,1);
 									fProp.UpdateFENProp(1, props.get(GamePropEum.GAME_ID), props.get(GamePropEum.GAME_RESULT));
 									fenCountMap.put(fen, fProp) ;
 								}
@@ -493,17 +493,60 @@ public class CSE712 {
 						String[] arr = line.substring(5).split(":");
 						currFen = arr[0];
 						try {
-							if(!finalMap.containsKey(arr[0]))
+							if(!finalMap.containsKey(currFen))
 							{
 								finalMap.put(arr[0], new FENProp());
 							}
-							finalMap.put(arr[0], finalMap.get(arr[0])+ Integer.parseInt(arr[1]));
+							FENProp fProps = finalMap.get(currFen);
+							fProps.count += Integer.parseInt(arr[1]);
+							finalMap.put(currFen,fProps);
 						} catch (Exception e) {
 							// TODO: handle exception
 						}
 					}
-					
-					
+					else if(line.startsWith("$GAME_RESULT$"))
+					{
+						if(finalMap.containsKey(currFen))
+						{
+							FENProp fProps = finalMap.get(currFen);
+							String[] arr = line.substring(13).split(Pattern.quote("||"));
+							for(String str : arr)
+							{
+								String[] pairs = str.split(":");
+								if(pairs.length == 2)
+								{
+									fProps.AddToResultMap(pairs[0], pairs[1]);
+								}								
+							}
+							
+							finalMap.put(currFen, fProps);
+						}
+					}
+					else if(line.startsWith("$TURNWISE_COUNT$"))
+					{
+						if(finalMap.containsKey(currFen))
+						{
+							FENProp fProps = finalMap.get(currFen);
+							String[] arr = line.substring(16).split(Pattern.quote("||"));
+							for(String str : arr)
+							{
+								String[] pairs = str.split(":");
+								try
+								{
+									if(pairs.length == 2)
+									{
+										fProps.UpdateTurnCount(Integer.parseInt(pairs[0].trim()), Integer.parseInt(pairs[1].trim()));
+									}
+								}
+								catch(Exception e)
+								{
+									//what to do
+								}																
+							}
+							
+							finalMap.put(currFen, fProps);
+						}
+					}
 				}			
 			}
 			
@@ -560,13 +603,13 @@ public class CSE712 {
 				bw.write("$GAME_RESULT$");
 				for(Map.Entry<String, String> pair : ele.GameResultMap.entrySet())
 				{
-					bw.write(pair.getKey()+":"+pair.getValue()+",");
+					bw.write(pair.getKey()+":"+pair.getValue()+"||");
 				}
 				bw.newLine();
 				bw.write("$TURNWISE_COUNT$");
 				for(Map.Entry<Integer, Integer> pair : ele.TurnWiseCount.entrySet())
 				{
-					bw.write(pair.getKey()+":"+pair.getValue()+",");
+					bw.write(pair.getKey()+":"+pair.getValue()+"||");
 				}
 				bw.newLine();
 			}
@@ -578,12 +621,14 @@ public class CSE712 {
 		}
 	}
 	
-	public static void WriteFENToFile(BufferedWriter bw, HashMap<String,Integer> map)
+	public static void WriteFENToFile(BufferedWriter bw, HashMap<String,FENProp> map)
 	{
 		FENCountQueue queue = new FENCountQueue();
-		for(Map.Entry<String, Integer> pair : map.entrySet())
+		for(Map.Entry<String, FENProp> pair : map.entrySet())
 		{
-			FEN fen = new FEN(pair.getKey(),pair.getValue());
+			FEN fen = new FEN(pair.getKey(),pair.getValue().count);
+			fen.GameResultMap = pair.getValue().gameResultMap;
+			fen.TurnWiseCount = pair.getValue().turnWiseCount;
 			queue.queue.add(fen);
 		}
 		try
@@ -591,7 +636,19 @@ public class CSE712 {
 			while(!queue.queue.isEmpty())
 			{
 				FEN ele = queue.queue.poll();
-				bw.write(ele.justFen()+"  "+ele.count);
+				bw.write("$FEN$"+ele.justFen()+":"+ele.count);
+				bw.newLine();
+				bw.write("$GAME_RESULT$");
+				for(Map.Entry<String, String> pair : ele.GameResultMap.entrySet())
+				{
+					bw.write(pair.getKey()+":"+pair.getValue()+",");
+				}
+				bw.newLine();
+				bw.write("$TURNWISE_COUNT$");
+				for(Map.Entry<Integer, Integer> pair : ele.TurnWiseCount.entrySet())
+				{
+					bw.write(pair.getKey()+":"+pair.getValue()+",");
+				}
 				bw.newLine();
 			}
 			bw.close();
