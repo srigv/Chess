@@ -89,8 +89,9 @@ public class CSE712 {
 			{
 				fenFiles = true;
 				fenOutDir = new File((new File(args[1]).getParent()) == null ? Paths.get(".").toAbsolutePath().normalize().toString() : (new File(args[1]).getParent()));
-				fenWriteDir = new File(fenOutDir.getAbsolutePath()+File.separator+Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE)+"_"+Calendar.getInstance().get(Calendar.HOUR)+"_"+Calendar.getInstance().get(Calendar.MINUTE));
-				fenTempDir = new File(fenOutDir.getAbsolutePath()+File.separator+Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE)+"_"+Calendar.getInstance().get(Calendar.HOUR)+"_"+Calendar.getInstance().get(Calendar.MINUTE)+File.separator+"Temp");
+				String today = Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE);
+				fenWriteDir = new File(fenOutDir.getAbsolutePath()+File.separator+today+File.separator+Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE)+"_"+Calendar.getInstance().get(Calendar.HOUR)+"_"+Calendar.getInstance().get(Calendar.MINUTE));
+				fenTempDir = new File(fenOutDir.getAbsolutePath()+File.separator+today+File.separator+Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE)+"_"+Calendar.getInstance().get(Calendar.HOUR)+"_"+Calendar.getInstance().get(Calendar.MINUTE)+File.separator+"Temp");
 				
 				if(!fenWriteDir.exists()){
 					fenWriteDir.mkdirs();
