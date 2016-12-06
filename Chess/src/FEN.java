@@ -39,6 +39,11 @@ public class FEN {
 		return IsValidFen && moveNum > 8;
 	}
 	
+	public Boolean isOpeningMove()
+	{
+		return moveNum <= 8;
+	}
+	
 	public String justFen()
 	{
 		return JustFen;

@@ -21,6 +21,10 @@ public class CSE712 {
 	static String[] pieces = new String[]{"Bishop","King","Knight","Pawn","Queen","Rook"};
 	static File fenOutDir = null;
 	static File fenWriteDir = null;
+	static int totalFenCount = 0;
+	static int discardedFenCount = 0;
+	static int discardedGameCount = 0;
+	static int first8MoveCount = 0;
 	
 	static HashMap<FEN,FENProp> fenCountMap = new HashMap<FEN,FENProp>();
 	public static void PrintHelp()
@@ -360,20 +364,18 @@ public class CSE712 {
 								PrintMemory();
 								System.out.println("done with "+doneFileCount+" remaining "+fileCount);
 							}
-							
-							
-							
-							isValidDate = false;
+							isValidDate = true; //TODO Some of the dates are missing, need to fix the issue
 							String str = GetQuotedValue(line);
 							props = Utils.GetGameProps(str);
-							if(datePattern.matcher(props.get(GamePropEum.TOURNMENT_DATE)).matches())
-							{
-								isValidDate = true;
-							}
+//							if(datePattern.matcher(props.get(GamePropEum.TOURNMENT_DATE)).matches())
+//							{
+//								isValidDate = true;
+//							}
 						}
 						else if(isValidDate)
 						{
 							FEN fen = new FEN(line);
+							totalFenCount++;
 							if(fen.isValidFen())
 							{
 								if(!fenCountMap.containsKey(fen))
@@ -388,7 +390,17 @@ public class CSE712 {
 									fProp.UpdateFENProp(1, props.get(GamePropEum.GAME_ID), props.get(GamePropEum.GAME_RESULT));
 									fenCountMap.put(fen, fProp) ;
 								}
-								
+							}
+							else
+							{
+								if(fen.isOpeningMove())
+								{
+									first8MoveCount++;
+								}
+								else
+								{
+									discardedFenCount++;
+								}								
 							}
 							if(fenCountMap.size() == 100000)
 							{
@@ -398,6 +410,10 @@ public class CSE712 {
 								fenPartFileCount++;
 								fenCountMap.clear();
 							}
+						}
+						else
+						{
+							discardedGameCount++;
 						}
 					}
 					
@@ -556,6 +572,9 @@ public class CSE712 {
 		}
 		
 		bw.close();
+		
+		PrintMemory();
+		
 		System.out.print("Done with the process");
 	}
 	
@@ -647,7 +666,7 @@ public class CSE712 {
 					bw.write("]");
 					bw.flush();
 					bw.close();
-					out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"FEN_"+(gameCount / gameBatchSize)+".txt");
+					out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"Games_"+(gameCount / gameBatchSize)+".txt");
 					bw = new BufferedWriter(new OutputStreamWriter(out_1));
 				}
 			}
@@ -765,6 +784,12 @@ public class CSE712 {
 
 		//Print Maximum available memory
 		System.out.println("Max Memory:" + runtime.maxMemory() / mb);
+		
+		System.out.println("Total fen count : "+totalFenCount);
+		System.out.println("Discarded fen count : "+discardedFenCount);
+		System.out.println("Retained fen count : "+discardedFenCount);
+		System.out.println("Opening move fen count : "+first8MoveCount);
+		System.out.println("Discarded Game count : "+discardedGameCount);
 	}
 	
 	public static String GetValue(String inp)
