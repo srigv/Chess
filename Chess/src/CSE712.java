@@ -19,6 +19,8 @@ public class CSE712 {
 	static HashMap<String,ArrayList<MoveByFEN>> FENMap = new HashMap<String,ArrayList<MoveByFEN>>();
 	static TreeMap<Integer,ArrayList<Integer>> movesByRating = new TreeMap<Integer,ArrayList<Integer>>();
 	static String[] pieces = new String[]{"Bishop","King","Knight","Pawn","Queen","Rook"};
+	static File fenOutDir = null;
+	static File fenWriteDir = null;
 	
 	static HashMap<FEN,FENProp> fenCountMap = new HashMap<FEN,FENProp>();
 	public static void PrintHelp()
@@ -65,8 +67,7 @@ public class CSE712 {
 		FileFilter filter = null;
 		int fileCount = 0;
 		int doneFileCount = 0;
-		File fenWriteDir = null;
-		File fenOutDir = null;
+		
 		File fenTempDir = null;
 		
 		for(int i = 0; i < args.length ; i++)
@@ -356,22 +357,7 @@ public class CSE712 {
 							if(gameCount % 10000 == 0)
 							{
 								System.out.println("read "+gameCount+" games..");
-								System.gc();
-								int mb = 1024*1024;
-								Runtime runtime = Runtime.getRuntime();
-								System.out.println("##### Heap utilization statistics [MB] #####");
-								
-								//Print used memory
-								System.out.println("Used Memory:" + (runtime.totalMemory() - runtime.freeMemory()) / mb);
-
-								//Print free memory
-								System.out.println("Free Memory:" + runtime.freeMemory() / mb);
-								
-								//Print total available memory
-								System.out.println("Total Memory:" + runtime.totalMemory() / mb);
-
-								//Print Maximum available memory
-								System.out.println("Max Memory:" + runtime.maxMemory() / mb);
+								PrintMemory();
 								System.out.println("done with "+doneFileCount+" remaining "+fileCount);
 							}
 							
@@ -458,6 +444,7 @@ public class CSE712 {
 		else
 		{
 			System.out.println("Saving FEN info");
+			
 			
 			FileOutputStream out_1 = new FileOutputStream(fenTempDir+File.separator+"FEN_"+fenPartFileCount+".txt");
 			bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
@@ -551,6 +538,8 @@ public class CSE712 {
 				}			
 			}
 			
+			PrintMemory();
+			
 			try
 			{
 				
@@ -566,21 +555,8 @@ public class CSE712 {
 			}
 		}
 		
-		
-		
-		
-//		bw.write("#### Zipf's law test - when played Against Higher rated ###\n");
-//		System.out.println("Testing Zipf's law....when played Against Higher rated");
-//		PrintTestResults(lowRateValueMap);
-//		System.out.println("Done, writing results to "+args[1]);
-//		
-//		bw.write("#### Zipf's law test - when played Against Lower rated ###\n");
-//		System.out.println("Testing Zipf's law.... when played Against Lower rated");
-//		PrintTestResults(highRateValueMap);
-//		System.out.println("Done, writing results to "+args[1]);
-		
 		bw.close();
-		//bw_fen.close();
+		System.out.print("Done with the process");
 	}
 	
 	
@@ -594,6 +570,8 @@ public class CSE712 {
 			pair.getKey().TurnWiseCount = pair.getValue().turnWiseCount;
 			queue.queue.add(pair.getKey());
 		}
+		
+		fenCountMap.clear();
 		try
 		{
 			while(!queue.queue.isEmpty())
@@ -622,37 +600,97 @@ public class CSE712 {
 		}
 	}
 	
+	
+	//this is currently being used
 	public static void WriteFENToFile(BufferedWriter bw, HashMap<String,FENProp> map)
 	{
 		FENCountQueue queue = new FENCountQueue();
+		HashMap<String,String> GameResultMap = new HashMap<String,String>();
 		for(Map.Entry<String, FENProp> pair : map.entrySet())
 		{
 			FEN fen = new FEN(pair.getKey(),pair.getValue().count);
+			for(Map.Entry<String,String> result : pair.getValue().gameResultMap.entrySet())
+			{
+				GameResultMap.put(result.getKey(), result.getValue());
+			}
 			fen.GameResultMap = pair.getValue().gameResultMap;
 			fen.TurnWiseCount = pair.getValue().turnWiseCount;
 			queue.queue.add(fen);
 		}
+		map.clear(); //saving memory by clearing the unused map
+		PrintMemory();
 		try
 		{
+			int count = 0;
+			int batchSize = 10000;
+			
+			int gameCount = 0;
+			int gameBatchSize = 10000;
+			
+			FileOutputStream out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"Games.txt");
+			bw = new BufferedWriter(new OutputStreamWriter(out_1));
+			
+			for(Map.Entry<String, String> pair : GameResultMap.entrySet())
+			{
+				bw.write("\"id\":"+count+1);
+				bw.newLine();
+				bw.write("\"GameId\":\""+pair.getKey()+"\",");
+				bw.newLine();
+				bw.write("\"Result\":\""+pair.getValue()+"\",");
+				
+				if(count % batchSize == 0)
+				{
+					bw.write("]");
+					bw.flush();
+					bw.close();
+					out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"FEN_"+(gameCount / gameBatchSize)+".txt");
+					bw = new BufferedWriter(new OutputStreamWriter(out_1));
+				}
+			}
+			
+			bw.write("[");
 			while(!queue.queue.isEmpty())
 			{
 				FEN ele = queue.queue.poll();
-				bw.write("$FEN$"+ele.justFen()+":"+ele.count);
+				bw.write("\"id\":"+count+1);
+				bw.write("\"FEN\":\""+ele.justFen()+"\",");
 				bw.newLine();
-				bw.write("$GAME_RESULT$");
-				for(Map.Entry<String, String> pair : ele.GameResultMap.entrySet())
-				{
-					bw.write(pair.getKey()+":"+pair.getValue()+",");
-				}
+				bw.write("\"Count\":"+ele.count+",");
 				bw.newLine();
-				bw.write("$TURNWISE_COUNT$");
+//				bw.write("\"Results\":[");
+				int ind = 0;
+//				for(Map.Entry<String, String> pair : ele.GameResultMap.entrySet())
+//				{
+//					bw.write("\""+pair.getKey()+","+pair.getValue()+"\"");
+//					bw.write((ind < ele.GameResultMap.size() ? "," : ""));
+//					ind++;
+//				}
+//				bw.write("],");
+				bw.newLine();
+				bw.write("\"TurnwiseCount\":[");
+				ind = 0;
 				for(Map.Entry<Integer, Integer> pair : ele.TurnWiseCount.entrySet())
 				{
-					bw.write(pair.getKey()+":"+pair.getValue()+",");
+					ind++;
+					bw.write("\""+pair.getKey()+","+pair.getValue()+"\"");
+					bw.write((ind < ele.TurnWiseCount.size() ? "," : ""));					
 				}
+				bw.write("]}\n,");
 				bw.newLine();
+				count++;
+				
+				if(count % batchSize == 0)
+				{
+					bw.write("]");
+					bw.flush();
+					bw.close();
+					out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"FEN_"+(count / batchSize)+".txt");
+					bw = new BufferedWriter(new OutputStreamWriter(out_1));
+				}
 			}
+			bw.write("]");
 			bw.close();
+			
 		}
 		catch(Exception e)
 		{
@@ -672,6 +710,26 @@ public class CSE712 {
 			
 			FENMap.get(m.FEN).add(new MoveByFEN(m.Gid, m.FEN));
 		}
+	}
+	
+	public static void PrintMemory()
+	{
+		System.gc();
+		int mb = 1024*1024;
+		Runtime runtime = Runtime.getRuntime();
+		System.out.println("##### Heap utilization statistics [MB] #####");
+		
+		//Print used memory
+		System.out.println("Used Memory:" + (runtime.totalMemory() - runtime.freeMemory()) / mb);
+
+		//Print free memory
+		System.out.println("Free Memory:" + runtime.freeMemory() / mb);
+		
+		//Print total available memory
+		System.out.println("Total Memory:" + runtime.totalMemory() / mb);
+
+		//Print Maximum available memory
+		System.out.println("Max Memory:" + runtime.maxMemory() / mb);
 	}
 	
 	public static String GetValue(String inp)
