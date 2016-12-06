@@ -606,23 +606,22 @@ public class CSE712 {
 	{
 		FENCountQueue queue = new FENCountQueue();
 		HashMap<String,String> GameResultMap = new HashMap<String,String>();
+		HashMap<String,Integer> GameIndexMap = new HashMap<String,Integer>();
 		for(Map.Entry<String, FENProp> pair : map.entrySet())
 		{
-			FEN fen = new FEN(pair.getKey(),pair.getValue().count);
+			//doing partial work to save heap space -- Space time tradeoff
 			for(Map.Entry<String,String> result : pair.getValue().gameResultMap.entrySet())
 			{
 				GameResultMap.put(result.getKey(), result.getValue());
 			}
-			fen.GameResultMap = pair.getValue().gameResultMap;
-			fen.TurnWiseCount = pair.getValue().turnWiseCount;
-			queue.queue.add(fen);
 		}
-		map.clear(); //saving memory by clearing the unused map
-		PrintMemory();
+		
 		try
 		{
 			int count = 0;
 			int batchSize = 10000;
+			
+			int missedGameCount = 0;
 			
 			int gameCount = 0;
 			int gameBatchSize = 10000;
@@ -632,6 +631,7 @@ public class CSE712 {
 			
 			for(Map.Entry<String, String> pair : GameResultMap.entrySet())
 			{
+				GameIndexMap.put(pair.getKey(), count+1);
 				bw.write("\"id\":"+count+1);
 				bw.newLine();
 				bw.write("\"GameId\":\""+pair.getKey()+"\",");
@@ -648,6 +648,24 @@ public class CSE712 {
 				}
 			}
 			
+			bw.close();
+			
+			out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"FEN.txt");
+			bw = new BufferedWriter(new OutputStreamWriter(out_1));
+			
+			GameResultMap.clear(); // not needed anymore, we have what we need in GameIndexMap
+			
+			for(Map.Entry<String, FENProp> pair : map.entrySet())
+			{
+				FEN fen = new FEN(pair.getKey(),pair.getValue().count);				
+				fen.GameResultMap = pair.getValue().gameResultMap;
+				fen.TurnWiseCount = pair.getValue().turnWiseCount;
+				queue.queue.add(fen);
+			}
+			
+			map.clear(); //saving memory by clearing the unused map
+			PrintMemory();
+			
 			bw.write("[");
 			while(!queue.queue.isEmpty())
 			{
@@ -657,15 +675,24 @@ public class CSE712 {
 				bw.newLine();
 				bw.write("\"Count\":"+ele.count+",");
 				bw.newLine();
-//				bw.write("\"Results\":[");
+				bw.write("\"Games\":[");
 				int ind = 0;
-//				for(Map.Entry<String, String> pair : ele.GameResultMap.entrySet())
-//				{
-//					bw.write("\""+pair.getKey()+","+pair.getValue()+"\"");
-//					bw.write((ind < ele.GameResultMap.size() ? "," : ""));
-//					ind++;
-//				}
-//				bw.write("],");
+				for(Map.Entry<String, String> pair : ele.GameResultMap.entrySet())
+				{
+					ind++;
+					int GameInd = -1;
+					if(GameIndexMap.containsKey(pair.getKey()))
+					{
+						GameInd = GameIndexMap.get(pair.getValue());
+						bw.write(GameInd);
+					}
+					else
+					{
+						missedGameCount++;
+					}
+					bw.write((ind < ele.GameResultMap.size() ? "," : ""));					
+				}
+				bw.write("],");
 				bw.newLine();
 				bw.write("\"TurnwiseCount\":[");
 				ind = 0;
@@ -689,6 +716,8 @@ public class CSE712 {
 				}
 			}
 			bw.write("]");
+			
+			bw.write("Missed game count : "+missedGameCount);
 			bw.close();
 			
 		}
