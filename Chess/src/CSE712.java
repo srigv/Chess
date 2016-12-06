@@ -619,7 +619,9 @@ public class CSE712 {
 		try
 		{
 			int count = 0;
-			int batchSize = 10000;
+			
+			int fenCount  = 0;
+			int fenBatchSize = 10000;
 			
 			int missedGameCount = 0;
 			
@@ -632,14 +634,16 @@ public class CSE712 {
 			for(Map.Entry<String, String> pair : GameResultMap.entrySet())
 			{
 				GameIndexMap.put(pair.getKey(), count+1);
-				bw.write("\"id\":"+count+1);
+				bw.write("\"id\":"+(count+1));
 				bw.newLine();
 				bw.write("\"GameId\":\""+pair.getKey()+"\",");
 				bw.newLine();
 				bw.write("\"Result\":\""+pair.getValue()+"\",");
+				gameCount++;
 				
-				if(count % batchSize == 0)
+				if(gameCount % gameBatchSize == 0)
 				{
+					System.out.print("."+gameCount);
 					bw.write("]");
 					bw.flush();
 					bw.close();
@@ -647,7 +651,7 @@ public class CSE712 {
 					bw = new BufferedWriter(new OutputStreamWriter(out_1));
 				}
 			}
-			
+			bw.flush();
 			bw.close();
 			
 			out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"FEN.txt");
@@ -670,7 +674,7 @@ public class CSE712 {
 			while(!queue.queue.isEmpty())
 			{
 				FEN ele = queue.queue.poll();
-				bw.write("\"id\":"+count+1);
+				bw.write("\"id\":"+(count+1));
 				bw.write("\"FEN\":\""+ele.justFen()+"\",");
 				bw.newLine();
 				bw.write("\"Count\":"+ele.count+",");
@@ -704,20 +708,22 @@ public class CSE712 {
 				}
 				bw.write("]}\n,");
 				bw.newLine();
+				fenCount++;
 				count++;
 				
-				if(count % batchSize == 0)
+				if(fenCount % fenBatchSize == 0)
 				{
+					System.out.print("."+fenCount);
 					bw.write("]");
 					bw.flush();
 					bw.close();
-					out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"FEN_"+(count / batchSize)+".txt");
+					out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"FEN_"+(fenCount / fenBatchSize)+".txt");
 					bw = new BufferedWriter(new OutputStreamWriter(out_1));
 				}
 			}
 			bw.write("]");
-			
-			bw.write("Missed game count : "+missedGameCount);
+			bw.flush();
+			//bw.write("Missed game count : "+missedGameCount);
 			bw.close();
 			
 		}
