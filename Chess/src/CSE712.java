@@ -642,8 +642,6 @@ public class CSE712 {
 			int fenCount  = 0;
 			int fenBatchSize = 10000;
 			
-			int missedGameCount = 0;
-			
 			int gameCount = 0;
 			int gameBatchSize = 10000;
 			
@@ -659,6 +657,7 @@ public class CSE712 {
 				bw.newLine();
 				bw.write("\"Result\":\""+pair.getValue()+"\",");
 				gameCount++;
+				count++;
 				
 				if(gameCount % gameBatchSize == 0)
 				{
@@ -678,6 +677,8 @@ public class CSE712 {
 			
 			GameResultMap.clear(); // not needed anymore, we have what we need in GameIndexMap
 			
+			System.out.println("map size "+map.size());
+			
 			for(Map.Entry<String, FENProp> pair : map.entrySet())
 			{
 				FEN fen = new FEN(pair.getKey(),pair.getValue().count);				
@@ -689,10 +690,14 @@ public class CSE712 {
 			map.clear(); //saving memory by clearing the unused map
 			PrintMemory();
 			
+			System.out.println("Queue size "+queue.queue.size());
+			
 			bw.write("[");
 			while(!queue.queue.isEmpty())
 			{
+				System.out.print(".");
 				FEN ele = queue.queue.poll();
+				System.out.print("2");
 				bw.write("\"id\":"+(count+1));
 				bw.write("\"FEN\":\""+ele.justFen()+"\",");
 				bw.newLine();
@@ -702,17 +707,16 @@ public class CSE712 {
 				int ind = 0;
 				for(Map.Entry<String, String> pair : ele.GameResultMap.entrySet())
 				{
+					System.out.print("3");
 					ind++;
 					int GameInd = -1;
 					if(GameIndexMap.containsKey(pair.getKey()))
 					{
 						GameInd = GameIndexMap.get(pair.getValue());
 						bw.write(GameInd);
+						System.out.print("4");
 					}
-					else
-					{
-						missedGameCount++;
-					}
+					
 					bw.write((ind < ele.GameResultMap.size() ? "," : ""));					
 				}
 				bw.write("],");
@@ -721,10 +725,12 @@ public class CSE712 {
 				ind = 0;
 				for(Map.Entry<Integer, Integer> pair : ele.TurnWiseCount.entrySet())
 				{
+					System.out.print("5");
 					ind++;
 					bw.write("\""+pair.getKey()+","+pair.getValue()+"\"");
 					bw.write((ind < ele.TurnWiseCount.size() ? "," : ""));					
 				}
+				System.out.print("6");
 				bw.write("]}\n,");
 				bw.newLine();
 				fenCount++;
