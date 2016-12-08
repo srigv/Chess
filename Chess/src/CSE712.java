@@ -651,11 +651,11 @@ public class CSE712 {
 			for(Map.Entry<String, String> pair : GameResultMap.entrySet())
 			{
 				GameIndexMap.put(pair.getKey(), count+1);
-				bw.write("\"id\":"+(count+1));
+				bw.write("{\"id\":"+(count+1));
 				bw.newLine();
 				bw.write("\"GameId\":\""+pair.getKey()+"\",");
 				bw.newLine();
-				bw.write("\"Result\":\""+pair.getValue()+"\",");
+				bw.write("\"Result\":\""+pair.getValue()+"\"},");
 				gameCount++;
 				count++;
 				
@@ -698,7 +698,7 @@ public class CSE712 {
 				System.out.print(".");
 				FEN ele = queue.queue.poll();
 				System.out.print("2");
-				bw.write("\"id\":"+(count+1));
+				bw.write("{\"id\":"+(count+1));
 				bw.write("\"FEN\":\""+ele.justFen()+"\",");
 				bw.newLine();
 				bw.write("\"Count\":"+ele.count+",");
@@ -708,12 +708,15 @@ public class CSE712 {
 				for(Map.Entry<String, String> pair : ele.GameResultMap.entrySet())
 				{
 					System.out.print("3");
+					System.out.println("Size : ");
+					System.out.print(GameIndexMap.size());
 					ind++;
 					int GameInd = -1;
 					if(GameIndexMap.containsKey(pair.getKey()))
 					{
-						GameInd = GameIndexMap.get(pair.getValue());
-						bw.write(GameInd);
+						GameInd = GameIndexMap.get(pair.getKey());
+						System.out.print("before 4 "+pair.getValue());
+						bw.write(GameInd+"");
 						System.out.print("4");
 					}
 					
