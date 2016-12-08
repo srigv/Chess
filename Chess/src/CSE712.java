@@ -651,7 +651,7 @@ public class CSE712 {
 			for(Map.Entry<String, String> pair : GameResultMap.entrySet())
 			{
 				GameIndexMap.put(pair.getKey(), count+1);
-				bw.write("{\"id\":"+(count+1));
+				bw.write("{\"id\":"+(count+1)+",");
 				bw.newLine();
 				bw.write("\"GameId\":\""+pair.getKey()+"\",");
 				bw.newLine();
@@ -698,7 +698,7 @@ public class CSE712 {
 				System.out.print(".");
 				FEN ele = queue.queue.poll();
 				System.out.print("2");
-				bw.write("{\"id\":"+(count+1));
+				bw.write("{\"id\":"+(count+1)+",");
 				bw.write("\"FEN\":\""+ele.justFen()+"\",");
 				bw.newLine();
 				bw.write("\"Count\":"+ele.count+",");
