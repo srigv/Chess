@@ -1,7 +1,9 @@
 import java.util.*;
+import java.util.regex.Pattern;
 
 public class Utils {
 	public static HashMap<String,Integer> symbolTable = new HashMap<String,Integer>();
+	public static Pattern NumberPattern = Pattern.compile("^[0-9]+$");
 	public static HashMap<GamePropEum,String> GetGameProps(String str)
 	{
 		HashMap<GamePropEum,String> map = new HashMap<GamePropEum,String>();
@@ -51,40 +53,58 @@ public class Utils {
 	public static String[] FenDivided(String str)
 	{
 		String[] arr = new String[4];
+		for(int i = 0; i < 4; i++)
+		{
+			arr[i] = "";
+		}
 		try
 		{
-			String[] temp = str.substring(0, str.indexOf('-')).trim().split(" ");
-			String num = "";
-			if(str.indexOf("-", str.indexOf('-')+1) > -1)
+			if(str.contains("- -"))
 			{
-				num = str.substring(str.indexOf('-')+1).trim().split(" ")[1].trim();
-			}
-			else
-			{
-				num = str.substring(str.indexOf('-')).trim().split(" ")[1].trim();
-			}
-			
-			if(temp.length >= 3)
-			{
-				for(int i = 0 ; i < 3 ; i++)
+				String[] parts = str.split("- -");
+				if(parts.length == 2)
 				{
-					arr[i] = temp[i].trim();
+					String[] first = parts[0].trim().split(" ");
+					if(first.length >= 2)
+					{
+						arr[0] = first[0].trim();
+						arr[1] = first[1].trim();
+						arr[2] = "";
+					}
+					
+					
+					String[] second = parts[1].trim().split(" ");
+					if(second.length == 2)
+					{
+						arr[3] = second[1].trim();
+					}					
 				}
 			}
-			
-			arr[3] = num;
+			else if(str.contains("-"))
+			{
+				String[] parts = str.split("-");
+				if(parts.length == 2)
+				{
+					String[] first = parts[0].trim().split(" ");
+					if(first.length == 3)
+					{
+						arr[0] = first[0].trim();
+						arr[1] = first[1].trim();
+						arr[2] = first[2].trim();
+					}
+					
+					
+					String[] second = parts[1].trim().split(" ");
+					if(second.length == 2)
+					{
+						arr[3] = second[1].trim();
+					}					
+				}
+			}
 		}
 		catch(Exception e)
 		{
-			
-			String[] temp = str.split(" ");
-			if(temp.length >= 3)
-			{
-				for(int i = 0 ; i < 3 ; i++)
-				{
-					arr[i] = temp[i];
-				}
-			}
+			//TODO handle the issue
 		}
 		
 		

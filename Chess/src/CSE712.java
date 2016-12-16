@@ -25,6 +25,7 @@ public class CSE712 {
 	static int discardedFenCount = 0;
 	static int discardedGameCount = 0;
 	static int first8MoveCount = 0;
+	static int zeroMoveNumCount = 0;
 	
 	static HashMap<FEN,FENProp> fenCountMap = new HashMap<FEN,FENProp>();
 	public static void PrintHelp()
@@ -43,6 +44,9 @@ public class CSE712 {
 		
 		System.out.println("--fen");
 		System.out.println("use this option to use fen segregation piece Eg : --fen");
+		
+		System.out.println("--solr");
+		System.out.println("use this option to use solr data gen from fen part files Eg : --solr");
 		System.out.println("\n##########################################\n");
 	}
 	
@@ -73,6 +77,8 @@ public class CSE712 {
 		int doneFileCount = 0;
 		
 		File fenTempDir = null;
+		
+		boolean isSolrDataGen = false;
 		
 		for(int i = 0; i < args.length ; i++)
 		{
@@ -105,6 +111,22 @@ public class CSE712 {
 				if(!fenTempDir.exists()){
 					fenTempDir.mkdirs();
 				}
+			}
+			else if(args[i].equals("--solr"))
+			{
+				fenOutDir = new File((new File(args[1]).getParent()) == null ? Paths.get(".").toAbsolutePath().normalize().toString() : (new File(args[1]).getParent()));
+				String today = Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE);
+				fenWriteDir = new File(fenOutDir.getAbsolutePath()+File.separator+today+File.separator+Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE)+"_"+Calendar.getInstance().get(Calendar.HOUR)+"_"+Calendar.getInstance().get(Calendar.MINUTE));
+				fenTempDir = new File(fenOutDir.getAbsolutePath()+File.separator+today+File.separator+Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE)+"_"+Calendar.getInstance().get(Calendar.HOUR)+"_"+Calendar.getInstance().get(Calendar.MINUTE)+File.separator+"Temp");
+				
+				if(!fenWriteDir.exists()){
+					fenWriteDir.mkdirs();
+				}
+				
+				if(!fenTempDir.exists()){
+					fenTempDir.mkdirs();
+				}
+				isSolrDataGen = true;
 			}
 		}
 		
@@ -146,338 +168,382 @@ public class CSE712 {
 		FileOutputStream out = new FileOutputStream(args[1]);
 		bw = new BufferedWriter(new OutputStreamWriter(out));
 		
-		Pattern datePattern = Pattern.compile("[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}");
+		//Pattern datePattern = Pattern.compile("[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}");
 		int gameCount = 0;
-	
-		for(File f : fileArray)
+		
+		if(!isSolrDataGen)
 		{
-			System.out.println("Reading games from "+f.getName());
-			BufferedReader br = null;
-			try
+			for(File f : fileArray)
 			{
-				 br = new BufferedReader(new FileReader(f));
-			}
-			catch(Exception exp)
-			{
-				System.out.println("Issue with "+f.getName()+" : "+exp.getMessage());
-			}
-			
-			if(!fenFiles)
-			{
+				boolean hasMoveNumIssue = false;
+				boolean hasGameIdIssue = false;
+				System.out.println("Reading games from "+f.getName());
+				BufferedReader br = null;
 				try
 				{
-					String line;
-					Game currentGame = null;
-					Move currentMove = null;
-					while((line = br.readLine()) != null)
+					 br = new BufferedReader(new FileReader(f));
+				}
+				catch(Exception exp)
+				{
+					System.out.println("Issue with "+f.getName()+" : "+exp.getMessage());
+				}
+				
+				if(!fenFiles)
+				{
+					try
 					{
-						if(line.startsWith("[Game"))
+						String line;
+						Game currentGame = null;
+						Move currentMove = null;
+						while((line = br.readLine()) != null)
 						{
-							if(currentGame != null)
+							if(line.startsWith("[Game"))
 							{
-								TestBenfordLaw(currentGame);
-								TestZipfsLawForMoves(currentGame);
-								TestPieceMovement(currentGame);
-								SaveMoves(currentGame);								
-							}
-							currentGame = new Game();
-						}
-						else if(line.startsWith("[WhiteElo"))
-						{
-							String elo = GetValue(line);
-							System.out.println("###"+elo);
-							currentGame.wElo = Integer.parseInt(elo.length() > 0 ? elo : "0");
-						}				
-						else if(line.startsWith("[BlackElo"))
-						{
-							String elo = GetValue(line);
-							//currentGame.wElo = Integer.parseInt(elo.length() > 0 ? elo : "0");
-							currentGame.bElo = Integer.parseInt(elo.length() > 0 ? elo : "0");
-						}
-						else if(line.startsWith("[GID"))
-						{
-							if(currentMove != null && Math.abs(currentMove.Eval) <= 300)
-							{
-								AddToFENMap(currentMove);
-								if(currentMove.Turn != null)
+								if(currentGame != null)
 								{
-									//TODO this one needs fix
-									if(currentMove.Turn.contains("-w"))
+									TestBenfordLaw(currentGame);
+									TestZipfsLawForMoves(currentGame);
+									TestPieceMovement(currentGame);
+									SaveMoves(currentGame);								
+								}
+								currentGame = new Game();
+							}
+							else if(line.startsWith("[WhiteElo"))
+							{
+								String elo = GetValue(line);
+								System.out.println("###"+elo);
+								currentGame.wElo = Integer.parseInt(elo.length() > 0 ? elo : "0");
+							}				
+							else if(line.startsWith("[BlackElo"))
+							{
+								String elo = GetValue(line);
+								//currentGame.wElo = Integer.parseInt(elo.length() > 0 ? elo : "0");
+								currentGame.bElo = Integer.parseInt(elo.length() > 0 ? elo : "0");
+							}
+							else if(line.startsWith("[GID"))
+							{
+								if(currentMove != null && Math.abs(currentMove.Eval) <= 300)
+								{
+									AddToFENMap(currentMove);
+									if(currentMove.Turn != null)
 									{
-										if(!currentMove.IsCaptureMove())
+										//TODO this one needs fix
+										if(currentMove.Turn.contains("-w"))
 										{
-											currentGame.wMoves.add(currentMove);
-										}								
+											if(!currentMove.IsCaptureMove())
+											{
+												currentGame.wMoves.add(currentMove);
+											}								
+										}
+										else
+										{
+											if(!currentMove.IsCaptureMove())
+											{
+												currentGame.bMoves.add(currentMove);
+											}								
+										}
+									}
+									
+								}						
+								currentMove = new Move();	
+								currentMove.Gid = GetQuotedValue(line);
+							}				
+							else if(line.startsWith("[MovePlayed"))
+							{
+								String current = line.split(" ")[1];
+								currentMove.MovePlayed = current.substring(1, current.lastIndexOf("\""));
+							}				
+							else if(line.startsWith("[EngineMove"))
+							{
+								currentMove.EngineMove = GetQuotedValue(line);
+							}				
+							else if(line.startsWith("[Eval"))
+							{
+								currentMove.Eval = Integer.parseInt(GetValue(line));
+							}				
+							else if(line.startsWith("[Depth "))
+							{
+								currentMove.Depth = GetQuotedValue(line);
+							}
+							else if(line.startsWith("[NumLegalMoves"))
+							{
+								currentMove.NumLegalMoves = Integer.parseInt(GetValue(line));
+							}				
+							else if(line.startsWith("[Turn") || line.startsWith("[MoveNo"))
+							{
+								currentMove.Turn = GetQuotedValue(line);
+							}
+							else if(line.startsWith("[FEN"))
+							{
+								currentMove.FEN = GetQuotedValue(line);
+							}
+							else if(line.startsWith("[LegalMoves "))
+							{
+								String err = null;
+								try
+								{
+									if(currentMove.NumLegalMoves > 0)
+									{
+										//skip 4 lines and start reading evaluation
+										int count = 4;
+										while(count > 0)
+										{
+											line = br.readLine();
+											count--;
+										}
+										
+										while(count < currentMove.NumLegalMoves && (line = br.readLine()) != null)
+										{
+											MoveEvaluation eval = new MoveEvaluation();
+											String[] moveArray = line.split("\\s+");
+											eval.Move = moveArray[0];
+											for(int i = 1; i < moveArray.length;i++)
+											{
+												try
+												{
+													err = FixEvaluation(moveArray[i]);
+													eval.Evaluation.add(Integer.parseInt(FixEvaluation(moveArray[i])));
+												}
+												catch(Exception exp)
+												{
+													//some issue with evaluation value
+													eval.Evaluation.add(0);
+												}
+												
+											}
+											currentMove.LegalMoves.add(eval);	
+											count++;
+										}
+									}
+								}
+								catch(Exception exp)
+								{
+									System.out.println(err);
+									System.out.println(Arrays.toString(exp.getStackTrace()));
+									//inner exception, continue with other moves
+								}
+								
+							}
+						}
+						
+						if(currentMove != null && Math.abs(currentMove.Eval) <= 300)
+						{
+							if(currentMove.Turn.contentEquals("-w"))
+							{
+								if(!currentMove.IsCaptureMove()){
+									currentGame.wMoves.add(currentMove);
+								}						
+							}
+							else
+							{
+								if(!currentMove.IsCaptureMove()){
+									currentGame.bMoves.add(currentMove);
+								}						
+							}
+						}
+						
+						if(currentGame != null)
+						{
+							TestBenfordLaw(currentGame);
+							TestZipfsLawForMoves(currentGame);
+							TestPieceMovement(currentGame);
+							SaveMoves(currentGame);
+							//no need to add games to memory, this saves memory
+						}
+						
+						System.out.println("..............");
+						
+						System.out.println("Done reading games...");
+						
+						
+					}
+					catch(Exception e)
+					{
+						System.out.println(Arrays.toString(e.getStackTrace()));
+					}
+					finally
+					{
+						if(br != null)
+						{
+							br.close();
+						}								
+					}
+				}
+				else
+				{
+					try
+					{
+						doneFileCount++;
+						fileCount--;
+						String line;
+						HashMap<GamePropEum,String> props = new HashMap<GamePropEum,String>();
+						Boolean isValidDate = false;
+						while((line = br.readLine()) != null)
+						{						
+							if(line.startsWith("[GameID"))
+							{
+								gameCount++;
+								if(gameCount % 10000 == 0)
+								{
+									System.out.println("read "+gameCount+" games..");
+									PrintMemory();
+									System.out.println("done with "+doneFileCount+" remaining "+fileCount);
+								}
+								isValidDate = true; //TODO Some of the dates are missing, need to fix the issue
+								String str = GetQuotedValue(line);
+								props = Utils.GetGameProps(str);
+//								if(datePattern.matcher(props.get(GamePropEum.TOURNMENT_DATE)).matches())
+//								{
+//									isValidDate = true;
+//								}
+							}
+							else if(isValidDate)
+							{
+								FEN fen = new FEN(line);
+								totalFenCount++;
+								if(fen.isValidFen())
+								{
+									if(fen.MoveNum() == 0)
+									{
+										zeroMoveNumCount++;
+									}
+									
+									if(fen.MoveNum() == 0 && !hasMoveNumIssue)
+									{
+										if(!line.startsWith("{")){
+											System.out.println("found move num 0 in "+f.getName()+" at "+line);
+											hasMoveNumIssue = true;
+										}									
+									}
+									try
+									{
+										if(!fenCountMap.containsKey(fen))
+										{
+											fenCountMap.put(fen, new FENProp());
+										}
+									}
+									catch(Exception e)
+									{
+										System.out.println(e.getMessage());
+									}
+									
+									//fen.count = fenCountMap.get(fen)+1;
+									if(props.containsKey(GamePropEum.GAME_ID))
+									{
+										FENProp fProp = fenCountMap.get(fen);
+										fProp.UpdateTurnCount(fen.moveNum,1);
+										fProp.UpdateFENProp(1, props.get(GamePropEum.GAME_ID), props.get(GamePropEum.GAME_RESULT));
+										fenCountMap.put(fen, fProp) ;
+									}
+									else if(!hasGameIdIssue)
+									{
+										System.out.println("has Game id issue in "+f.getName());
+										hasGameIdIssue = true;
+									}
+								}
+								else
+								{
+									if(fen.isOpeningMove())
+									{
+										first8MoveCount++;
 									}
 									else
 									{
-										if(!currentMove.IsCaptureMove())
-										{
-											currentGame.bMoves.add(currentMove);
-										}								
-									}
+										discardedFenCount++;
+									}								
 								}
-								
-							}						
-							currentMove = new Move();	
-							currentMove.Gid = GetQuotedValue(line);
-						}				
-						else if(line.startsWith("[MovePlayed"))
-						{
-							String current = line.split(" ")[1];
-							currentMove.MovePlayed = current.substring(1, current.lastIndexOf("\""));
-						}				
-						else if(line.startsWith("[EngineMove"))
-						{
-							currentMove.EngineMove = GetQuotedValue(line);
-						}				
-						else if(line.startsWith("[Eval"))
-						{
-							currentMove.Eval = Integer.parseInt(GetValue(line));
-						}				
-						else if(line.startsWith("[Depth "))
-						{
-							currentMove.Depth = GetQuotedValue(line);
-						}
-						else if(line.startsWith("[NumLegalMoves"))
-						{
-							currentMove.NumLegalMoves = Integer.parseInt(GetValue(line));
-						}				
-						else if(line.startsWith("[Turn") || line.startsWith("[MoveNo"))
-						{
-							currentMove.Turn = GetQuotedValue(line);
-						}
-						else if(line.startsWith("[FEN"))
-						{
-							currentMove.FEN = GetQuotedValue(line);
-						}
-						else if(line.startsWith("[LegalMoves "))
-						{
-							String err = null;
-							try
-							{
-								if(currentMove.NumLegalMoves > 0)
+								if(fenCountMap.size() == 100000)
 								{
-									//skip 4 lines and start reading evaluation
-									int count = 4;
-									while(count > 0)
-									{
-										line = br.readLine();
-										count--;
-									}
-									
-									while(count < currentMove.NumLegalMoves && (line = br.readLine()) != null)
-									{
-										MoveEvaluation eval = new MoveEvaluation();
-										String[] moveArray = line.split("\\s+");
-										eval.Move = moveArray[0];
-										for(int i = 1; i < moveArray.length;i++)
-										{
-											try
-											{
-												err = FixEvaluation(moveArray[i]);
-												eval.Evaluation.add(Integer.parseInt(FixEvaluation(moveArray[i])));
-											}
-											catch(Exception exp)
-											{
-												//some issue with evaluation value
-												eval.Evaluation.add(0);
-											}
-											
-										}
-										currentMove.LegalMoves.add(eval);	
-										count++;
-									}
-								}
-							}
-							catch(Exception exp)
-							{
-								System.out.println(err);
-								System.out.println(Arrays.toString(exp.getStackTrace()));
-								//inner exception, continue with other moves
-							}
-							
-						}
-					}
-					
-					if(currentMove != null && Math.abs(currentMove.Eval) <= 300)
-					{
-						if(currentMove.Turn.contentEquals("-w"))
-						{
-							if(!currentMove.IsCaptureMove()){
-								currentGame.wMoves.add(currentMove);
-							}						
-						}
-						else
-						{
-							if(!currentMove.IsCaptureMove()){
-								currentGame.bMoves.add(currentMove);
-							}						
-						}
-					}
-					
-					if(currentGame != null)
-					{
-						TestBenfordLaw(currentGame);
-						TestZipfsLawForMoves(currentGame);
-						TestPieceMovement(currentGame);
-						SaveMoves(currentGame);
-						//no need to add games to memory, this saves memory
-					}
-					
-					System.out.println("..............");
-					
-					System.out.println("Done reading games...");
-					
-					
-				}
-				catch(Exception e)
-				{
-					System.out.println(Arrays.toString(e.getStackTrace()));
-				}
-				finally
-				{
-					if(br != null)
-					{
-						br.close();
-					}								
-				}
-			}
-			else
-			{
-				try
-				{
-					doneFileCount++;
-					fileCount--;
-					String line;
-					HashMap<GamePropEum,String> props = new HashMap<GamePropEum,String>();
-					Boolean isValidDate = false;
-					while((line = br.readLine()) != null)
-					{						
-						if(line.startsWith("[GameID"))
-						{
-							//System.out.print(".");
-							gameCount++;
-							if(gameCount % 10000 == 0)
-							{
-								System.out.println("read "+gameCount+" games..");
-								PrintMemory();
-								System.out.println("done with "+doneFileCount+" remaining "+fileCount);
-							}
-							isValidDate = true; //TODO Some of the dates are missing, need to fix the issue
-							String str = GetQuotedValue(line);
-							props = Utils.GetGameProps(str);
-//							if(datePattern.matcher(props.get(GamePropEum.TOURNMENT_DATE)).matches())
-//							{
-//								isValidDate = true;
-//							}
-						}
-						else if(isValidDate)
-						{
-							FEN fen = new FEN(line);
-							totalFenCount++;
-							if(fen.isValidFen())
-							{
-								if(!fenCountMap.containsKey(fen))
-								{
-									fenCountMap.put(fen, new FENProp());
-								}
-								//fen.count = fenCountMap.get(fen)+1;
-								if(props.containsKey(GamePropEum.GAME_ID))
-								{
-									FENProp fProp = fenCountMap.get(fen);
-									fProp.UpdateTurnCount(fen.moveNum,1);
-									fProp.UpdateFENProp(1, props.get(GamePropEum.GAME_ID), props.get(GamePropEum.GAME_RESULT));
-									fenCountMap.put(fen, fProp) ;
+									FileOutputStream out_1 = new FileOutputStream(fenTempDir+File.separator+"FEN_"+fenPartFileCount+".txt");
+									bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+									WriteFENToFile(bw_fen);
+									fenPartFileCount++;
+									fenCountMap.clear();
 								}
 							}
 							else
 							{
-								if(fen.isOpeningMove())
-								{
-									first8MoveCount++;
-								}
-								else
-								{
-									discardedFenCount++;
-								}								
-							}
-							if(fenCountMap.size() == 100000)
-							{
-								FileOutputStream out_1 = new FileOutputStream(fenTempDir+File.separator+"FEN_"+fenPartFileCount+".txt");
-								bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
-								WriteFENToFile(bw_fen);
-								fenPartFileCount++;
-								fenCountMap.clear();
+								discardedGameCount++;
 							}
 						}
-						else
-						{
-							discardedGameCount++;
-						}
+						
 					}
-					
-				}
-				catch(Exception e)
-				{
-					System.out.println(Arrays.toString(e.getStackTrace()));
-					
-				}
-				finally
-				{
-					if(br != null)
+					catch(Exception e)
 					{
-						br.close();
-					}								
-				}
-			}		
+						System.out.println(Arrays.toString(e.getStackTrace()));
+						
+					}
+					finally
+					{
+						if(br != null)
+						{
+							br.close();
+						}								
+					}
+				}		
+				
+			}
 			
-		}
-		
-		if(!fenFiles)
-		{
-			bw.write("#### Benford's law test ###\n");
+			if(!fenFiles)
+			{
+				bw.write("#### Benford's law test ###\n");
+				
+				System.out.println("Testing Benford's law....");
+				PrintTestResults(benfordArray);
+				System.out.println("Done, writing results to "+args[1]);
+				
+				bw.write("#### Zipf's law test ###\n");
+				
+				System.out.println("Testing Zip's law....");
+				
+				System.out.println("Testing Zipf's law....");
+				PrintTestResults(valueMap);
+				System.out.println("Done, writing results to "+args[1]);
+				
+				System.out.println("Testing Piece frequency ....");
+				PrintTestResults1(pieceMoveMap);
+				System.out.println("Done, writing results to "+args[1]);
+				
+				System.out.println("Printing moves on to file");
+				SaveMoveInfo();
+			}
+			else
+			{
+				System.out.println("Saving FEN info");
+				
+				
+				FileOutputStream out_1 = new FileOutputStream(fenTempDir+File.separator+"FEN_"+fenPartFileCount+".txt");
+				bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+				WriteFENToFile(bw_fen);
+				fenPartFileCount++;
+				fenCountMap.clear();	
+				fenCountMap.clear();
+				bw_fen.close();
+				
+			}
 			
-			System.out.println("Testing Benford's law....");
-			PrintTestResults(benfordArray);
-			System.out.println("Done, writing results to "+args[1]);
+			bw.close();
 			
-			bw.write("#### Zipf's law test ###\n");
+			PrintMemory();
 			
-			System.out.println("Testing Zip's law....");
-			
-			System.out.println("Testing Zipf's law....");
-			PrintTestResults(valueMap);
-			System.out.println("Done, writing results to "+args[1]);
-			
-			System.out.println("Testing Piece frequency ....");
-			PrintTestResults1(pieceMoveMap);
-			System.out.println("Done, writing results to "+args[1]);
-			
-			System.out.println("Printing moves on to file");
-			SaveMoveInfo();
+			System.out.print("Done with the process");
 		}
 		else
 		{
-			System.out.println("Saving FEN info");
-			
-			
-			FileOutputStream out_1 = new FileOutputStream(fenTempDir+File.separator+"FEN_"+fenPartFileCount+".txt");
-			bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
-			WriteFENToFile(bw_fen);
-			fenPartFileCount++;
-			fenCountMap.clear();	
-			fenCountMap.clear();
-			
-			bw_fen.close();
-			
-			
 			HashMap<String,FENProp> finalMap = new HashMap<String,FENProp>();
 			
 			//File[]  outFiles = fenTempDir.listFiles(new MyFilter(".txt","(?=.*"+(new File(args[1])).getName()+"_FEN*)"));
-			File[]  outFiles = fenTempDir.listFiles();
-			for(File f : outFiles)
+			//File[]  outFiles = fenTempDir.listFiles();
+			int fCount = 0;
+			for(File f : fileArray)
 			{
+				fCount++;
+				System.out.print(fCount+" ");
+				if(fCount % 10 == 0)
+				{
+					PrintMemory();
+				}
+				System.out.println("reading from "+f.getName());
 				BufferedReader br = null;
 				try
 				{
@@ -559,23 +625,24 @@ public class CSE712 {
 			try
 			{
 				
-				out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"FEN"+".txt");
+				FileOutputStream out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"FEN"+".txt");
 				bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
 				WriteFENToFile(bw_fen,finalMap);
 				bw_fen.close();
 				finalMap.clear();
+				
+				System.out.println("Done with process");
 			}
 			catch(Exception e)
 			{
 				System.out.print("Couldn't write to file "+e.getMessage());
 			}
 		}
+	
 		
-		bw.close();
 		
-		PrintMemory();
 		
-		System.out.print("Done with the process");
+		
 	}
 	
 	
@@ -645,9 +712,11 @@ public class CSE712 {
 			int gameCount = 0;
 			int gameBatchSize = 10000;
 			
-			FileOutputStream out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"Games.txt");
+			String gameFileName = fenWriteDir.getAbsolutePath()+File.separator+"Games.txt";
+			FileOutputStream out_1 = new FileOutputStream(gameFileName);
 			bw = new BufferedWriter(new OutputStreamWriter(out_1));
-			
+			System.out.println("writing games to "+gameFileName);
+			bw.write("[");
 			for(Map.Entry<String, String> pair : GameResultMap.entrySet())
 			{
 				GameIndexMap.put(pair.getKey(), count+1);
@@ -655,29 +724,37 @@ public class CSE712 {
 				bw.newLine();
 				bw.write("\"GameId\":\""+pair.getKey()+"\",");
 				bw.newLine();
-				bw.write("\"Result\":\""+pair.getValue()+"\"},");
+				bw.write("\"Result\":\""+pair.getValue()+"\"}");
 				gameCount++;
 				count++;
 				
 				if(gameCount % gameBatchSize == 0)
-				{
-					System.out.print("."+gameCount);
+				{	
 					bw.write("]");
 					bw.flush();
 					bw.close();
-					out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"Games_"+(gameCount / gameBatchSize)+".txt");
+					bw.write("[");
+					gameFileName = fenWriteDir.getAbsolutePath()+File.separator+"Games_"+(gameCount / gameBatchSize)+".txt";
+					out_1 = new FileOutputStream(gameFileName);
 					bw = new BufferedWriter(new OutputStreamWriter(out_1));
+					System.out.println("writing games to "+gameFileName);
+				}
+				else
+				{
+					bw.write(",");
 				}
 			}
 			bw.flush();
 			bw.close();
 			
-			out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"FEN.txt");
+			String fenFileName = fenWriteDir.getAbsolutePath()+File.separator+"FEN.txt";
+			out_1 = new FileOutputStream(fenFileName);
 			bw = new BufferedWriter(new OutputStreamWriter(out_1));
 			
 			GameResultMap.clear(); // not needed anymore, we have what we need in GameIndexMap
 			
 			System.out.println("map size "+map.size());
+			System.out.println("writing FENs to "+fenFileName);
 			
 			for(Map.Entry<String, FENProp> pair : map.entrySet())
 			{
@@ -695,9 +772,7 @@ public class CSE712 {
 			bw.write("[");
 			while(!queue.queue.isEmpty())
 			{
-				System.out.print(".");
 				FEN ele = queue.queue.poll();
-				System.out.print("2");
 				bw.write("{\"id\":"+(count+1)+",");
 				bw.write("\"FEN\":\""+ele.justFen()+"\",");
 				bw.newLine();
@@ -707,17 +782,12 @@ public class CSE712 {
 				int ind = 0;
 				for(Map.Entry<String, String> pair : ele.GameResultMap.entrySet())
 				{
-					System.out.print("3");
-					System.out.println("Size : ");
-					System.out.print(GameIndexMap.size());
 					ind++;
 					int GameInd = -1;
 					if(GameIndexMap.containsKey(pair.getKey()))
 					{
 						GameInd = GameIndexMap.get(pair.getKey());
-						System.out.print("before 4 "+pair.getValue());
-						bw.write(GameInd+"");
-						System.out.print("4");
+						bw.write(GameInd+"");						
 					}
 					
 					bw.write((ind < ele.GameResultMap.size() ? "," : ""));					
@@ -728,25 +798,31 @@ public class CSE712 {
 				ind = 0;
 				for(Map.Entry<Integer, Integer> pair : ele.TurnWiseCount.entrySet())
 				{
-					System.out.print("5");
 					ind++;
 					bw.write("\""+pair.getKey()+","+pair.getValue()+"\"");
 					bw.write((ind < ele.TurnWiseCount.size() ? "," : ""));					
 				}
-				System.out.print("6");
-				bw.write("]}\n,");
-				bw.newLine();
+				
+				
 				fenCount++;
 				count++;
 				
 				if(fenCount % fenBatchSize == 0)
 				{
 					System.out.print("."+fenCount);
+					bw.write("]}");
 					bw.write("]");
 					bw.flush();
 					bw.close();
-					out_1 = new FileOutputStream(fenWriteDir.getAbsolutePath()+File.separator+"FEN_"+(fenCount / fenBatchSize)+".txt");
+					fenFileName = fenWriteDir.getAbsolutePath()+File.separator+"FEN_"+(fenCount / fenBatchSize)+".txt";
+					out_1 = new FileOutputStream(fenFileName);
 					bw = new BufferedWriter(new OutputStreamWriter(out_1));
+					System.out.println("writing FENs to "+fenFileName);
+				}
+				else
+				{
+					bw.write("]}\n,");
+					bw.newLine();
 				}
 			}
 			bw.write("]");
@@ -796,9 +872,11 @@ public class CSE712 {
 		
 		System.out.println("Total fen count : "+totalFenCount);
 		System.out.println("Discarded fen count : "+discardedFenCount);
-		System.out.println("Retained fen count : "+discardedFenCount);
+		System.out.println("Retained fen count : "+(totalFenCount-discardedFenCount));
 		System.out.println("Opening move fen count : "+first8MoveCount);
 		System.out.println("Discarded Game count : "+discardedGameCount);
+		System.out.println("Zero move num count : "+zeroMoveNumCount);
+		
 	}
 	
 	public static String GetValue(String inp)

@@ -15,8 +15,11 @@ public class FEN {
 		if(s.length == 4 && s[0] != null && s[1] != null && s[2] != null && s[3] != null)
 		{
 			IsValidFen = true;
-			JustFen = s[0]+" w "+s[2];
-			moveNum = Integer.parseInt(s[3]);
+			JustFen = s[0].trim()+" w "+s[2].trim();
+			if(Utils.NumberPattern.matcher(s[3].trim()).matches())
+			{
+				moveNum = Integer.parseInt(s[3].trim());
+			}			
 		}
 	}
 	
@@ -36,12 +39,12 @@ public class FEN {
 	
 	public Boolean isValidFen()
 	{
-		return IsValidFen && moveNum > 8;
+		return ((IsValidFen && moveNum > 8) || moveNum == 0) && JustFen != null;
 	}
 	
 	public Boolean isOpeningMove()
 	{
-		return moveNum <= 8;
+		return moveNum <= 8 && moveNum > 0;
 	}
 	
 	public String justFen()
