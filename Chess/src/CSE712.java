@@ -3,6 +3,9 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 import java.nio.file.Paths;
 
@@ -21,11 +24,17 @@ public class CSE712 {
 	static String[] pieces = new String[]{"Bishop","King","Knight","Pawn","Queen","Rook"};
 	static File fenOutDir = null;
 	static File fenWriteDir = null;
+	
+	static File FenDumpDir = null;
+	static File GameDumpDir = null;
+	static int DumpType = 0;
+	
 	static int totalFenCount = 0;
 	static int discardedFenCount = 0;
 	static int discardedGameCount = 0;
 	static int first8MoveCount = 0;
 	static int zeroMoveNumCount = 0;
+	static int FenbatchSize = 5000000;
 	
 	static HashMap<FEN,FENProp> fenCountMap = new HashMap<FEN,FENProp>();
 	public static void PrintHelp()
@@ -48,9 +57,15 @@ public class CSE712 {
 		System.out.println("--solr");
 		System.out.println("use this option to use solr data gen from fen part files Eg : --solr");
 		System.out.println("\n##########################################\n");
+		
+		System.out.println("--buffer");
+		System.out.println("use this option to use fen part index files Eg : --buffer 2");
+		System.out.println("\n##########################################\n");
 	}
 	
 	public static void main(String[] args) throws IOException {
+		
+		int buffer = 0;
 		if(args.length == 0)
 		{
 			PrintHelp();
@@ -77,12 +92,70 @@ public class CSE712 {
 		int doneFileCount = 0;
 		
 		File fenTempDir = null;
+		File uniqFenDir = null;
 		
 		boolean isSolrDataGen = false;
+		boolean isFenTest = false;
 		
 		for(int i = 0; i < args.length ; i++)
 		{
-			if(args[i].equals("--rf"))
+			if(args[i].equals("--buffer"))
+			{
+				if(i+1 < args.length)
+				{
+					try{
+						buffer = Integer.parseInt(args[i+1]);
+					}
+					catch(Exception e)
+					{
+						System.out.println("--buffer isn't specified or has a wrong value "+e.getMessage());
+						return;
+					}
+				}
+			}
+			else if(args[i].equals("--dumpType"))
+			{
+				if(i+1 < args.length)
+				{
+					try{
+						DumpType = Integer.parseInt(args[i+1]);
+					}
+					catch(Exception e)
+					{
+						System.out.println("--buffer isn't specified or has a wrong value "+e.getMessage());
+						return;
+					}
+				}
+			}
+			else if(args[i].equals("--fenDump"))
+			{
+				if(i+1 < args.length)
+				{
+					try{
+						FenDumpDir = new File(args[i+1]);						
+					}
+					catch(Exception e)
+					{
+						System.out.println("--FenDump isn't specified or has a wrong value "+e.getMessage());
+						return;
+					}
+				}
+			}
+			else if(args[i].equals("--gameDump"))
+			{
+				if(i+1 < args.length)
+				{
+					try{
+						GameDumpDir = new File(args[i+1]);
+					}
+					catch(Exception e)
+					{
+						System.out.println("--gameDump isn't specified or has a wrong value "+e.getMessage());
+						return;
+					}
+				}
+			}
+			else if(args[i].equals("--rf"))
 			{
 				if(i+1 < args.length)
 				{
@@ -128,7 +201,25 @@ public class CSE712 {
 				}
 				isSolrDataGen = true;
 			}
+			else if(args[i].equals("--justfen"))
+			{
+				fenOutDir = new File((new File(args[1]).getParent()) == null ? Paths.get(".").toAbsolutePath().normalize().toString() : (new File(args[1]).getParent()));
+				String today = Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE);
+				uniqFenDir = new File(fenOutDir.getAbsolutePath()+File.separator+today+File.separator+Calendar.getInstance().get(Calendar.YEAR)+"_"+(Calendar.getInstance().get(Calendar.MONTH)+1)+"_"+Calendar.getInstance().get(Calendar.DATE)+"_"+Calendar.getInstance().get(Calendar.HOUR)+"_"+Calendar.getInstance().get(Calendar.MINUTE)+File.separator+"UNIQ");
+				
+				
+				if(!uniqFenDir.exists()){
+					uniqFenDir.mkdirs();
+				}
+				System.out.println("--justfen option found");
+				System.out.println("Going to test FEN memory footprint");
+				isFenTest = true;
+			}
+			
+			
 		}
+		
+		
 		
 		System.out.println("Handling file "+args[0]);
 		File input = new File(args[0]);
@@ -170,15 +261,253 @@ public class CSE712 {
 		
 		//Pattern datePattern = Pattern.compile("[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}");
 		int gameCount = 0;
+		BufferedReader br = null;
 		
-		if(!isSolrDataGen)
+		//Testing if FEN fits memory or not
+		if(isFenTest)
+		{
+			System.out.println("intitated FEN memory test..");
+			
+			if(FenDumpDir != null && !FenDumpDir.exists()){
+				System.out.println("FenDump dir is not specified");
+				return;
+			}
+			
+			if(GameDumpDir != null && !GameDumpDir.exists()){
+				System.out.println("GameDump dir is not specified");
+				return;
+			}
+			
+			if(DumpType == 1)
+			{
+				System.out.println("White moves are being collected");
+			}
+			else if(DumpType == 2)
+			{
+				System.out.println("Black moves are being collected");
+			}
+			else if(DumpType == 3)
+			{
+				System.out.println("Games are being collected");
+			}
+			ConcurrentHashMap<String, Boolean> fenIndexMap = new ConcurrentHashMap<String, Boolean>();
+			ConcurrentHashMap<String, Boolean> gameIndexMap = new ConcurrentHashMap<String, Boolean>();
+			ExecutorService executor = Executors.newFixedThreadPool(10);
+			int fenIndex = 1;
+			int gameIndex = 1;
+			for(File f : fileArray)
+			{
+				try
+				{
+					doneFileCount++;
+					fileCount--;
+					Runnable worker = new FENCollectorThread(f, fenIndexMap, gameIndexMap,DumpType);
+					executor.execute(worker);
+					
+					System.out.println("done with "+doneFileCount+" remaining "+fileCount);
+					
+				}
+				catch(Exception e)
+				{
+					System.out.println(Arrays.toString(e.getStackTrace())+"  "+e.getMessage());					
+				}
+				finally
+				{
+					if(br != null)
+					{
+						br.close();
+					}								
+				}
+			}
+			
+			
+			
+			executor.shutdown();  
+	        while (!executor.isTerminated()) {   }
+	        
+	        if(DumpType == 1 || DumpType == 2)
+			{
+				FileOutputStream out_1 = new FileOutputStream(FenDumpDir.getAbsolutePath()+File.separator+"FEN"+".txt");
+				bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+				fenIndex = 1;
+				for(Map.Entry<String, Boolean> pair : fenIndexMap.entrySet())
+				{
+					bw_fen.write(pair.getKey());
+					bw_fen.newLine();
+					fenIndex++;
+					if(fenIndex % 1000000 == 0)
+					{
+						bw_fen.close();
+						out_1 = new FileOutputStream(FenDumpDir.getAbsolutePath()+File.separator+"FEN_"+(fenIndex / 1000000)+".txt");
+						bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+					}
+				}
+				bw_fen.close();
+			}
+			
+			
+			
+			if(DumpType == 3)
+			{
+				gameIndex = 1;
+				
+				FileOutputStream out_1 = new FileOutputStream(GameDumpDir.getAbsolutePath()+File.separator+"Games"+".txt");
+				bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+				for(Map.Entry<String, Boolean> pair : gameIndexMap.entrySet())
+				{
+					bw_fen.write(pair.getKey());
+					bw_fen.newLine();
+					gameIndex++;
+					if(gameIndex % 1000000 == 0)
+					{
+						bw_fen.close();
+						out_1 = new FileOutputStream(GameDumpDir.getAbsolutePath()+File.separator+"Games_"+(gameIndex / 1000000)+".txt");
+						bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+					}
+				}				
+				bw_fen.close();				
+			}
+			
+			PrintMemory();
+			System.out.println("Done with the process");
+			return;
+		}		
+		
+		if(fenFiles)
+		{
+			System.out.println("intitated FEN Generation task..");
+			int start = buffer * FenbatchSize;
+			int end = start + FenbatchSize;
+			
+			System.out.println("batch start : "+start+" ,end : "+end);
+			
+			if(!FenDumpDir.exists())
+			{
+				System.out.println("Problem accesing Fen Dump directory");
+				return;
+			}
+			
+			if(!GameDumpDir.exists())
+			{
+				System.out.println("Problem accesing Game Dump directory");
+				return;
+			}
+			
+			ConcurrentHashMap<String, Boolean> fenIndexMap = new ConcurrentHashMap<String, Boolean>();
+			ConcurrentHashMap<String, Boolean> gameIndexMap = new ConcurrentHashMap<String, Boolean>();
+			
+			int count = 0;
+			for(File f : FenDumpDir.listFiles())
+			{
+				try
+				{
+					br = new BufferedReader(new FileReader(f));
+					String line = "";
+					while((line = br.readLine()) != null)
+					{
+						if(count <= start)
+						{
+							continue;
+						}
+						
+						if(count > start && count <= end)
+						{
+							
+						}
+						
+						count++;
+					}
+				}
+				catch(Exception e)
+				{
+					
+				}
+				
+			}
+			
+			
+			
+			ExecutorService executor = Executors.newFixedThreadPool(10);
+			int fenIndex = 1;
+			int gameIndex = 1;
+			for(File f : fileArray)
+			{
+				try
+				{
+					doneFileCount++;
+					fileCount--;
+					Runnable worker = new FENCollectorThread(f, fenIndexMap, gameIndexMap,DumpType);
+					executor.execute(worker);
+					
+					System.out.println("done with "+doneFileCount+" remaining "+fileCount);
+					
+				}
+				catch(Exception e)
+				{
+					System.out.println(Arrays.toString(e.getStackTrace())+"  "+e.getMessage());					
+				}
+				finally
+				{
+					if(br != null)
+					{
+						br.close();
+					}								
+				}
+			}
+			
+			FileOutputStream out_1 = new FileOutputStream(uniqFenDir.getAbsolutePath()+File.separator+"FEN"+".txt");
+			bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+			fenIndex = 1;
+			for(Map.Entry<String, Boolean> pair : fenIndexMap.entrySet())
+			{
+				bw_fen.write(pair.getKey()+"||"+fenIndex);
+				bw_fen.newLine();
+				fenIndex++;
+				if(fenIndex % 10000000 == 0)
+				{
+					bw_fen.close();
+					out_1 = new FileOutputStream(uniqFenDir.getAbsolutePath()+File.separator+"FEN_"+(fenIndex / 100000)+".txt");
+					bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+				}
+			}
+			
+			bw_fen.close();
+			gameIndex = 1;
+			
+			out_1 = new FileOutputStream(uniqFenDir.getAbsolutePath()+File.separator+"Games"+".txt");
+			bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+			for(Map.Entry<String, Boolean> pair : gameIndexMap.entrySet())
+			{
+				bw_fen.write(pair.getKey()+"||"+gameIndex);
+				bw_fen.newLine();
+				gameIndex++;
+				if(gameIndex % 1000000 == 0)
+				{
+					bw_fen.close();
+					out_1 = new FileOutputStream(uniqFenDir.getAbsolutePath()+File.separator+"Games_"+(gameIndex / 100000)+".txt");
+					bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+				}
+			}
+			
+			bw_fen.close();
+			
+			executor.shutdown();  
+	        while (!executor.isTerminated()) {   }
+			
+			PrintMemory();
+			System.out.println("Done with the process");
+			
+			return;
+		}
+		
+		if(!isSolrDataGen && !fenFiles)
 		{
 			for(File f : fileArray)
 			{
 				boolean hasMoveNumIssue = false;
 				boolean hasGameIdIssue = false;
 				System.out.println("Reading games from "+f.getName());
-				BufferedReader br = null;
+				
 				try
 				{
 					 br = new BufferedReader(new FileReader(f));
@@ -246,7 +575,7 @@ public class CSE712 {
 									
 								}						
 								currentMove = new Move();	
-								currentMove.Gid = GetQuotedValue(line);
+								currentMove.Gid = Utils.GetQuotedValue(line);
 							}				
 							else if(line.startsWith("[MovePlayed"))
 							{
@@ -255,7 +584,7 @@ public class CSE712 {
 							}				
 							else if(line.startsWith("[EngineMove"))
 							{
-								currentMove.EngineMove = GetQuotedValue(line);
+								currentMove.EngineMove = Utils.GetQuotedValue(line);
 							}				
 							else if(line.startsWith("[Eval"))
 							{
@@ -263,7 +592,7 @@ public class CSE712 {
 							}				
 							else if(line.startsWith("[Depth "))
 							{
-								currentMove.Depth = GetQuotedValue(line);
+								currentMove.Depth = Utils.GetQuotedValue(line);
 							}
 							else if(line.startsWith("[NumLegalMoves"))
 							{
@@ -271,11 +600,11 @@ public class CSE712 {
 							}				
 							else if(line.startsWith("[Turn") || line.startsWith("[MoveNo"))
 							{
-								currentMove.Turn = GetQuotedValue(line);
+								currentMove.Turn = Utils.GetQuotedValue(line);
 							}
 							else if(line.startsWith("[FEN"))
 							{
-								currentMove.FEN = GetQuotedValue(line);
+								currentMove.FEN = Utils.GetQuotedValue(line);
 							}
 							else if(line.startsWith("[LegalMoves "))
 							{
@@ -390,7 +719,7 @@ public class CSE712 {
 									System.out.println("done with "+doneFileCount+" remaining "+fileCount);
 								}
 								isValidDate = true; //TODO Some of the dates are missing, need to fix the issue
-								String str = GetQuotedValue(line);
+								String str = Utils.GetQuotedValue(line);
 								props = Utils.GetGameProps(str);
 //								if(datePattern.matcher(props.get(GamePropEum.TOURNMENT_DATE)).matches())
 //								{
@@ -528,7 +857,7 @@ public class CSE712 {
 			
 			System.out.print("Done with the process");
 		}
-		else
+		else if(!isSolrDataGen)
 		{
 			HashMap<String,FENProp> finalMap = new HashMap<String,FENProp>();
 			
@@ -544,7 +873,6 @@ public class CSE712 {
 					PrintMemory();
 				}
 				System.out.println("reading from "+f.getName());
-				BufferedReader br = null;
 				try
 				{
 					 br = new BufferedReader(new FileReader(f));
@@ -638,11 +966,6 @@ public class CSE712 {
 				System.out.print("Couldn't write to file "+e.getMessage());
 			}
 		}
-	
-		
-		
-		
-		
 	}
 	
 	
@@ -885,18 +1208,7 @@ public class CSE712 {
 		return current;
 	}
 	
-	public static String GetQuotedValue(String inp)
-	{
-		if(inp.contains("\""))
-		{
-			if(inp.indexOf('"', inp.indexOf('"')+1) > -1)
-			{
-				return inp.substring(inp.indexOf('"')+1,inp.indexOf('"', inp.indexOf('"')+1));
-			}			
-		}
-		
-		return "";
-	}
+	
 	
 	public static void SaveMoves(Game g)
 	{

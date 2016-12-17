@@ -1,9 +1,11 @@
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 public class Utils {
 	public static HashMap<String,Integer> symbolTable = new HashMap<String,Integer>();
 	public static Pattern NumberPattern = Pattern.compile("^[0-9]+$");
+	private static AtomicInteger FileCount = new AtomicInteger();
 	public static HashMap<GamePropEum,String> GetGameProps(String str)
 	{
 		HashMap<GamePropEum,String> map = new HashMap<GamePropEum,String>();
@@ -109,6 +111,56 @@ public class Utils {
 		
 		
 		return arr;
+	}
+	
+	public static void IncrementDoneFileCount()
+	{
+		FileCount.addAndGet(1);
+	}
+	
+	public static int GetDoneFileCount()
+	{
+		return FileCount.get();
+	}
+	
+	public static void ResetFileCount()
+	{
+		FileCount.set(0);
+	}
+	
+	public static String GetQuotedValue(String inp)
+	{
+		if(inp.contains("\""))
+		{
+			if(inp.indexOf('"', inp.indexOf('"')+1) > -1)
+			{
+				return inp.substring(inp.indexOf('"')+1,inp.indexOf('"', inp.indexOf('"')+1));
+			}			
+		}
+		
+		return "";
+	}
+	
+	public static void PrintMemory()
+	{
+		System.gc();
+		int mb = 1024*1024;
+		Runtime runtime = Runtime.getRuntime();
+		System.out.println("##### Heap utilization statistics [MB] #####");
+		
+		//Print used memory
+		System.out.println("Used Memory:" + (runtime.totalMemory() - runtime.freeMemory()) / mb);
+
+		//Print free memory
+		System.out.println("Free Memory:" + runtime.freeMemory() / mb);
+		
+		//Print total available memory
+		System.out.println("Total Memory:" + runtime.totalMemory() / mb);
+
+		//Print Maximum available memory
+		System.out.println("Max Memory:" + runtime.maxMemory() / mb);
+		
+		
 	}
 
 }
