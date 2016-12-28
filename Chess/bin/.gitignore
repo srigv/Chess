@@ -1,4 +1,12 @@
-/Test.class
-/TestCases.class
-/FENCollectorThread.class
 /FENIndexDataGenerator.class
+/FENProp.class
+/FENbyUser.class
+/Game.class
+/GamePropEum.class
+/Move.class
+/MoveByFEN.class
+/MoveEvaluation.class
+/MyFilter.class
+/Random.class
+/TestCases.class
+/Utils.class
