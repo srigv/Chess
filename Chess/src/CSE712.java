@@ -245,7 +245,6 @@ public class CSE712 {
 			} else {
 				fileArray = input.listFiles();
 			}
-
 		} else {
 			fileArray = new File[] { input };
 		}
@@ -360,7 +359,7 @@ public class CSE712 {
 			int start = fenStart * fenBatchSize;
 			int end = start + fenBatchSize - 1;
 
-			System.out.println("batch start : " + start + " ,end : " + end);
+			System.out.println("batch start : " + start + ", end : " + end);
 
 			if (FenDumpDir == null || !FenDumpDir.exists()) {
 				System.out.println("Problem accesing Fen Dump directory");
@@ -382,6 +381,7 @@ public class CSE712 {
 			int count = 0;
 			for (File f : arr) {
 				try {
+					System.out.println("reading FEN from : "+f.getName());
 					br = new BufferedReader(new FileReader(f));
 					String line = "";
 					while ((line = br.readLine()) != null) {
@@ -394,7 +394,14 @@ public class CSE712 {
 							fenIndexMap.put(line.trim(), true);
 							fenPropMap.put(line.trim(), new FENProp());
 						}
+						
 						count++;
+					}
+					
+					if(count > end)
+					{
+						System.out.println("Done collecting nessecary FEN");
+						break;							
 					}
 				} catch (Exception e) {
 					System.out.println(e.getMessage() + " at " + e.getStackTrace());
@@ -407,6 +414,7 @@ public class CSE712 {
 								// otherwise id will be different
 			for (File f : arr) {
 				try {
+					System.out.println("reading Games from : "+f.getName());
 					br = new BufferedReader(new FileReader(f));
 					String line = "";
 					while ((line = br.readLine()) != null) {
@@ -417,6 +425,9 @@ public class CSE712 {
 					System.out.println(e.getMessage() + " at " + e.getStackTrace());
 				}
 			}
+			
+			System.out.println("collected FEN count : "+fenPropMap.size());
+			System.out.println("collected Game count : "+gameIndexMap.size());
 
 			ExecutorService executor = Executors.newFixedThreadPool(16);
 

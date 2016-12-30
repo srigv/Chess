@@ -20,6 +20,8 @@ public class FENIndexDataGenerator implements Runnable {
     	 try
 			{
 				BufferedReader br = new BufferedReader(new FileReader(fileName));
+				System.out.println("Started processing file "+fileName.getName());
+				
 				
 				HashMap<GamePropEum,String> props = new HashMap<GamePropEum,String>();
 				Boolean isValidDate = false;
@@ -51,6 +53,9 @@ public class FENIndexDataGenerator implements Runnable {
 					}
 				}
 				
+				System.out.println("Done processing file "+fileName.getName());
+				
+				Utils.IncrementDoneFileCount();
 				System.out.println("Done with "+Utils.GetDoneFileCount()+" files");
 				Utils.PrintMemory();
 				br.close();

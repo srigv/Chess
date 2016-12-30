@@ -50,7 +50,7 @@ public class FEN {
 	
 	public Boolean isValidFen()
 	{
-		return ((IsValidFen && moveNum > 8) || moveNum == 0) && JustFen != null;
+		return ((IsValidFen && moveNum > 8) || moveNum == 0) && JustFen != null && JustFen.length() > 0;
 	}
 	
 	public Boolean isOpeningMove()
