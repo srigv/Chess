@@ -91,6 +91,7 @@ public class CSE712 {
 
 		boolean isSolrDataGen = false;
 		boolean isFenTest = false;
+		boolean isSanityTest = false;
 
 		int fenStart = 0;
 		int fenBatchSize = 2500000;
@@ -226,6 +227,34 @@ public class CSE712 {
 					}
 				}
 			}
+			else if (args[i].equals("--sanity")) {
+				isSanityTest = true;
+				
+				fenFiles = true;
+				fenOutDir = new File((new File(args[1]).getParent()) == null
+						? Paths.get(".").toAbsolutePath().normalize().toString() : (new File(args[1]).getParent()));
+				String today = Calendar.getInstance().get(Calendar.YEAR) + "_"
+						+ (Calendar.getInstance().get(Calendar.MONTH) + 1) + "_"
+						+ Calendar.getInstance().get(Calendar.DATE);
+				fenWriteDir = new File(fenOutDir.getAbsolutePath() + File.separator + today + File.separator
+						+ Calendar.getInstance().get(Calendar.YEAR) + "_"
+						+ (Calendar.getInstance().get(Calendar.MONTH) + 1) + "_"
+						+ Calendar.getInstance().get(Calendar.DATE) + "_" + Calendar.getInstance().get(Calendar.HOUR)
+						+ "_" + Calendar.getInstance().get(Calendar.MINUTE));
+				fenTempDir = new File(fenOutDir.getAbsolutePath() + File.separator + today + File.separator
+						+ Calendar.getInstance().get(Calendar.YEAR) + "_"
+						+ (Calendar.getInstance().get(Calendar.MONTH) + 1) + "_"
+						+ Calendar.getInstance().get(Calendar.DATE) + "_" + Calendar.getInstance().get(Calendar.HOUR)
+						+ "_" + Calendar.getInstance().get(Calendar.MINUTE) + File.separator + "Temp");
+
+				if (!fenWriteDir.exists()) {
+					fenWriteDir.mkdirs();
+				}
+
+				if (!fenTempDir.exists()) {
+					fenTempDir.mkdirs();
+				}
+			}
 		}
 
 		System.out.println("Handling file " + args[0]);
@@ -260,6 +289,103 @@ public class CSE712 {
 		// Pattern.compile("[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}");
 		int gameCount = 0;
 		BufferedReader br = null;
+		
+		if (isSanityTest) {
+			System.out.println("intitated FEN Sanity check task..");
+			int start = fenStart * fenBatchSize;
+			int end = start + fenBatchSize - 1;
+
+			System.out.println("batch start : " + start + ", end : " + end);
+
+			if (FenDumpDir == null || !FenDumpDir.exists()) {
+				System.out.println("Problem accesing Fen Dump directory");
+				return;
+			}
+
+			if (GameDumpDir == null || !GameDumpDir.exists()) {
+				System.out.println("Problem accesing Game Dump directory");
+				return;
+			}
+
+			ConcurrentHashMap<String, Integer> fenCountMap = new ConcurrentHashMap<String, Integer>();
+			
+
+			File[] arr = FenDumpDir.listFiles();
+			Arrays.sort(arr); // sorting files to keep it consistent across the
+								// system
+			int count = 0;
+			for (File f : arr) {
+				try {
+					System.out.println("reading FEN from : "+f.getName());
+					br = new BufferedReader(new FileReader(f));
+					String line = "";
+					while ((line = br.readLine()) != null) {
+						if (count < start) {
+							count++;
+							continue;
+						}
+
+						if (count >= start && count <= end) {
+							fenCountMap.put(line.trim(), 0);
+						}
+						
+						count++;
+					}
+					
+					if(count > end)
+					{
+						System.out.println("Done collecting nessecary FEN");
+						break;							
+					}
+				} catch (Exception e) {
+					System.out.println(e.getMessage() + " at " + e.getStackTrace());
+				}
+			}
+
+			
+			
+			System.out.println("collected FEN count : "+fenCountMap.size());
+
+			ExecutorService executor = Executors.newFixedThreadPool(16);
+
+			for (File f : fileArray) {
+				try {
+					Runnable worker = new FENCountCheck(f, fenCountMap);
+					executor.execute(worker);
+				} catch (Exception e) {
+					System.out.println(Arrays.toString(e.getStackTrace()) + "  " + e.getMessage());
+				} finally {
+					if (br != null) {
+						br.close();
+					}
+				}
+			}
+
+			executor.shutdown();
+			while (!executor.isTerminated()) {
+			}
+
+			try {
+
+				FileOutputStream out_1 = new FileOutputStream(
+						fenWriteDir.getAbsolutePath() + File.separator + "FEN" + ".txt");
+				bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
+				Map<String,Integer> map;
+				map = MapUtil.sortByValue(fenCountMap);
+				WriteFENCountToFile(bw_fen, map);
+				bw_fen.close();
+				fenCountMap.clear();
+
+				System.out.println("Done with process");
+			} catch (Exception e) {
+				System.out.print("Couldn't write to file " + e.getMessage());
+			}
+
+			PrintMemory();
+			System.out.println("Done with the process");
+
+			return;
+		}
 
 		// Testing if FEN fits memory or not
 		if (isFenTest) {
@@ -355,7 +481,7 @@ public class CSE712 {
 		}
 
 		if (fenFiles) {
-			System.out.println("intitated FEN Generation task..");
+			System.out.println("intitated FEN Generation task with prev fen update..");
 			int start = fenStart * fenBatchSize;
 			int end = start + fenBatchSize - 1;
 
@@ -826,6 +952,7 @@ public class CSE712 {
 		}
 	}
 
+	
 	public static void WriteFENToFile(BufferedWriter bw) {
 		FENCountQueue queue = new FENCountQueue();
 		for (Map.Entry<FEN, FENProp> pair : fenCountMap.entrySet()) {
@@ -995,7 +1122,7 @@ public class CSE712 {
 	public static void WriteFENToFileWithGameIndexMap(BufferedWriter bw, ConcurrentHashMap<String, FENProp> map) {
 		try {
 			int fenCount = 0;
-			int fenBatchSize = 10000;
+			int fenBatchSize = 100000;
 
 			String fenFileName = fenWriteDir.getAbsolutePath() + File.separator + "FEN.txt";
 			FileOutputStream out_1 = new FileOutputStream(fenFileName);
@@ -1026,11 +1153,20 @@ public class CSE712 {
 					bw.write("\"" + tunPair.getKey() + "," + tunPair.getValue() + "\"");
 					bw.write((ind < pair.getValue().turnWiseCount.size() ? "," : ""));
 				}
+				
+				bw.write("],");
+				bw.newLine();
+				bw.write("\"PrevFen\":[");
+				ind = 0;
+				for (String str : pair.getValue().prevFen) {
+					ind++;
+					bw.write("\"" + str + "\"");
+					bw.write((ind < pair.getValue().prevFen.size() ? "," : ""));
+				}
 
 				fenCount++;
 
 				if (fenCount % fenBatchSize == 0) {
-					System.out.print("." + fenCount);
 					bw.write("]}");
 					bw.write("]");
 					bw.flush();
@@ -1048,6 +1184,50 @@ public class CSE712 {
 			}
 
 			bw.write("]");
+			bw.flush();
+			// bw.write("Missed game count : "+missedGameCount);
+			bw.close();
+
+			map.clear(); // saving memory by clearing the unused map
+			PrintMemory();
+
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+		}
+	}
+	
+	public static void WriteFENCountToFile(BufferedWriter bw, Map<String, Integer> map) {
+		try {
+			int fenCount = 0;
+			int fenBatchSize = 100000;
+
+			String fenFileName = fenWriteDir.getAbsolutePath() + File.separator + "FEN.txt";
+			FileOutputStream out_1 = new FileOutputStream(fenFileName);
+			bw = new BufferedWriter(new OutputStreamWriter(out_1));
+
+			System.out.println("writing FENs to " + fenFileName);
+
+			bw.write("[");
+			for (Map.Entry<String, Integer> pair : map.entrySet()) {
+				bw.write(pair.getKey() + ","+pair.getValue());
+				bw.newLine();
+				fenCount++;
+
+				if (fenCount % fenBatchSize == 0) {
+					bw.flush();
+					bw.close();
+					fenFileName = fenWriteDir.getAbsolutePath() + File.separator + "FEN_" + (fenCount / fenBatchSize)
+							+ ".txt";
+					out_1 = new FileOutputStream(fenFileName);
+					bw = new BufferedWriter(new OutputStreamWriter(out_1));
+					System.out.println("writing FENs to " + fenFileName);
+				} else {
+					bw.write("\n,");
+					bw.newLine();
+				}
+
+			}
+
 			bw.flush();
 			// bw.write("Missed game count : "+missedGameCount);
 			bw.close();

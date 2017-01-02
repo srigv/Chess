@@ -64,48 +64,91 @@ public class Utils {
 		}
 		try
 		{
-			if(str.contains("- -"))
+			//first part FEN
+			//second part move count since pawn
+			//third part move turn
+			//fourth the move played in TAN notation
+			String[] fenParts = str.split(" ");
+			if(fenParts.length > 2 && fenParts[2] != null && fenParts[2].equals("-"))
 			{
-				String[] parts = str.split("- -");
-				if(parts.length == 2)
+				arr[0] = fenParts[0]+" "+fenParts[1];
+				if(fenParts.length >= 5)
 				{
-					String[] first = parts[0].trim().split(" ");
-					if(first.length >= 2)
-					{
-						arr[0] = first[0].trim();
-						arr[1] = first[1].trim();
-						arr[2] = "";
-					}
-					
-					
-					String[] second = parts[1].trim().split(" ");
-					if(second.length == 2)
-					{
-						arr[3] = second[1].trim();
-					}					
+					arr[1] = fenParts[4].trim();
+				}
+				
+				if(fenParts.length >= 6)
+				{
+					arr[2] = fenParts[5].trim();
+				}
+				
+				if(fenParts.length >= 8)
+				{
+					arr[3] = fenParts[7].trim();
 				}
 			}
-			else if(str.contains("-"))
+			else if(fenParts.length > 2 && fenParts[2] != null && !fenParts[2].equals("-"))
 			{
-				String[] parts = str.split("-");
-				if(parts.length == 2)
+				arr[0] = fenParts[0]+" "+fenParts[1] +" "+fenParts[2];
+				if(fenParts.length >= 5)
 				{
-					String[] first = parts[0].trim().split(" ");
-					if(first.length == 3)
-					{
-						arr[0] = first[0].trim();
-						arr[1] = first[1].trim();
-						arr[2] = first[2].trim();
-					}
-					
-					
-					String[] second = parts[1].trim().split(" ");
-					if(second.length == 2)
-					{
-						arr[3] = second[1].trim();
-					}					
+					arr[1] = fenParts[4].trim();
+				}
+				
+				if(fenParts.length >= 6)
+				{
+					arr[2] = fenParts[5].trim();
+				}
+				
+				if(fenParts.length >= 8)
+				{
+					arr[3] = fenParts[7].trim();
 				}
 			}
+			
+//			if(str.contains("- -"))
+//			{
+//				String[] parts = str.split("- -");
+//				if(parts.length == 2)
+//				{
+//					String[] first = parts[0].trim().split(" ");
+//					if(first.length >= 2)
+//					{
+//						arr[0] = first[0].trim();
+//						arr[1] = first[1].trim();
+//						arr[2] = "";
+//					}
+//					
+//					
+//					String[] second = parts[1].trim().split(" ");
+//					if(second.length == 2)
+//					{
+//						arr[3] = second[1].trim();
+//					}					
+//				}
+//			}
+//			else if(str.contains("-"))
+//			{
+//				String[] parts = new String[2];
+//				
+//				if(parts.length == 2)
+//				{
+//					String[] first = parts[0].trim().split(" ");
+//					if(first.length == 3)
+//					{
+//						arr[0] = first[0].trim();
+//						arr[1] = first[1].trim();
+//						arr[2] = first[2].trim();
+//					}
+//					
+//					
+//					String[] second = parts[1].trim().split(" ");
+//					if(second.length == 2)
+//					{
+//						arr[3] = second[1].trim();
+//					}					
+//				}
+//			}
 		}
 		catch(Exception e)
 		{

@@ -5,6 +5,7 @@ public class FEN {
 	String JustFen;
 	int count;
 	int moveNum = 0;
+	String MovePlayed = "NA";
 	HashMap<String,String> GameResultMap = new HashMap<String,String>();
 	HashMap<Integer,Integer> TurnWiseCount = new HashMap<Integer,Integer>();
 	boolean isWhiteMove = true;
@@ -16,17 +17,19 @@ public class FEN {
 		if(s.length == 4 && s[0] != null && s[1] != null && s[2] != null && s[3] != null)
 		{
 			IsValidFen = true;
-			JustFen = s[0].trim()+" "+s[1]+" "+s[2].trim();
-			JustFen = JustFen.trim();
-			if(Utils.NumberPattern.matcher(s[3].trim()).matches())
+			JustFen = s[0].trim();
+			if(Utils.NumberPattern.matcher(s[2].trim()).matches())
 			{
-				moveNum = Integer.parseInt(s[3].trim());
+				moveNum = Integer.parseInt(s[2].trim());
 			}
 			
-			if(s[1].trim().equals("b"))
+			String[] parts = s[0].split(" ");
+			if(parts[1].trim().equals("b"))
 			{
 				isWhiteMove = false;
 			}
+			
+			MovePlayed = s[3].trim();
 		}
 	}
 	

@@ -4,20 +4,18 @@ import java.io.FileReader;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class FENIndexDataGenerator implements Runnable {
-
+public class FENCountCheck implements Runnable {
 	private File fileName;  
-	private ConcurrentHashMap<String, Boolean> fenMap;
-	private ConcurrentHashMap<String, Integer> gameMap;
-	private ConcurrentHashMap<String, FENProp> fenPropMap;
-    public FENIndexDataGenerator(File fileName,ConcurrentHashMap<String, Boolean> fenMap,ConcurrentHashMap<String, Integer> gameMap,ConcurrentHashMap<String, FENProp> fenPropMap){  
-        this.fileName = fileName;  
-        this.fenMap = fenMap;
-        this.gameMap = gameMap;
-        this.fenPropMap = fenPropMap;
-    }  
-     public void run() {  
-    	 try
+	private ConcurrentHashMap<String, Integer> fenCountMap;
+	
+	public FENCountCheck(File fileName,ConcurrentHashMap<String, Integer> fenMap)
+	{
+		this.fileName = fileName;
+		this.fenCountMap = fenMap;
+	}
+	
+	public void run() {  
+   	 try
 			{
 				BufferedReader br = new BufferedReader(new FileReader(fileName));
 				System.out.println("Started processing file "+fileName.getName());
@@ -26,7 +24,6 @@ public class FENIndexDataGenerator implements Runnable {
 				HashMap<GamePropEum,String> props = new HashMap<GamePropEum,String>();
 				Boolean isValidDate = false;
 				String line = "";
-				String prev = "";
 				while((line = br.readLine()) != null)
 				{						
 					if(line.startsWith("[GameID"))
@@ -34,32 +31,21 @@ public class FENIndexDataGenerator implements Runnable {
 						isValidDate = true; //TODO Some of the dates are missing, need to fix the issue
 						String str = Utils.GetQuotedValue(line);
 						props = Utils.GetGameProps(str);
-						prev = "";
 					}
 					else if(isValidDate && !line.startsWith("{"))
 					{
 						FEN fen = new FEN(line);
-						if(fen.isValidFen() && fenMap.containsKey(fen.JustFen))
+						if(fen.isValidFen() && fenCountMap.containsKey(fen.JustFen))
 						{
 							try
 							{
-								fenPropMap.get(fen.JustFen).UpdateTurnCount(fen.moveNum,1);
-								fenPropMap.get(fen.JustFen).UpdateFENProp(1, gameMap.get(props.get(GamePropEum.GAME_ID))+"", fen.MovePlayed);
+								fenCountMap.put(fen.JustFen, fenCountMap.get(fen.JustFen)+1);
 								//fenPropMap.put(fen.JustFen, fProp) ;
-								if(prev.length() > 0)
-								{
-									fenPropMap.get(fen.JustFen).AddPrevFen(prev);
-								}								
 							}
 							catch(Exception e)
 							{
 								System.out.println(e.getMessage());
 							}
-						}
-						
-						if(fen.isValidFen())
-						{
-							prev = fen.JustFen;
 						}
 					}
 				}
@@ -75,5 +61,6 @@ public class FENIndexDataGenerator implements Runnable {
 			{
 				System.out.println("Issue with "+fileName.getName()+" : "+exp.getMessage());
 			}
-    }
+   }
+
 }
