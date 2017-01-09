@@ -29,6 +29,8 @@ public class CSE712 {
 	static File GameDumpDir = null;
 	static int DumpType = 0;
 
+	
+	static int fenStart = 0;
 	static int totalFenCount = 0;
 	static int discardedFenCount = 0;
 	static int discardedGameCount = 0;
@@ -93,7 +95,7 @@ public class CSE712 {
 		boolean isFenTest = false;
 		boolean isSanityTest = false;
 
-		int fenStart = 0;
+		
 		int fenBatchSize = 2500000;
 		for (int i = 0; i < args.length; i++) {
 			if (args[i].equals("--buffer")) {
@@ -1124,15 +1126,25 @@ public class CSE712 {
 			int fenCount = 0;
 			int fenBatchSize = 100000;
 
-			String fenFileName = fenWriteDir.getAbsolutePath() + File.separator + "FEN.txt";
+			String fenFileName = fenWriteDir.getAbsolutePath() + File.separator + "FEN_"+fenStart+"_0.txt";
 			FileOutputStream out_1 = new FileOutputStream(fenFileName);
 			bw = new BufferedWriter(new OutputStreamWriter(out_1));
 
 			System.out.println("writing FENs to " + fenFileName);
 
+			Boolean fileStart = true;
 			bw.write("[");
 			for (Map.Entry<String, FENProp> pair : map.entrySet()) {
-				bw.write("\"id\":\"" + pair.getKey() + "\",");
+				if(!fileStart)
+				{
+					bw.write(",");
+				}
+				
+				if(fileStart)
+				{
+					fileStart = false;
+				}
+				bw.write("{\"id\":\"" + pair.getKey() + "\",");
 				bw.newLine();
 				bw.write("\"Count\":" + pair.getValue().count + ",");
 				bw.newLine();
@@ -1171,13 +1183,14 @@ public class CSE712 {
 					bw.write("]");
 					bw.flush();
 					bw.close();
-					fenFileName = fenWriteDir.getAbsolutePath() + File.separator + "FEN_" + (fenCount / fenBatchSize)
+					fenFileName = fenWriteDir.getAbsolutePath() + File.separator + "FEN_"+fenStart+"_" + (fenCount / fenBatchSize)
 							+ ".txt";
 					out_1 = new FileOutputStream(fenFileName);
 					bw = new BufferedWriter(new OutputStreamWriter(out_1));
+					fileStart = true;
 					System.out.println("writing FENs to " + fenFileName);
 				} else {
-					bw.write("]}\n,");
+					bw.write("]}\n");
 					bw.newLine();
 				}
 
