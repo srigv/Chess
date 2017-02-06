@@ -10,11 +10,13 @@ public class FENIndexDataGenerator implements Runnable {
 	private ConcurrentHashMap<String, Boolean> fenMap;
 	private ConcurrentHashMap<String, Integer> gameMap;
 	private ConcurrentHashMap<String, FENProp> fenPropMap;
-    public FENIndexDataGenerator(File fileName,ConcurrentHashMap<String, Boolean> fenMap,ConcurrentHashMap<String, Integer> gameMap,ConcurrentHashMap<String, FENProp> fenPropMap){  
+	private int dumpType = 1;
+    public FENIndexDataGenerator(File fileName,ConcurrentHashMap<String, Boolean> fenMap,ConcurrentHashMap<String, Integer> gameMap,ConcurrentHashMap<String, FENProp> fenPropMap,int dumpType){  
         this.fileName = fileName;  
         this.fenMap = fenMap;
         this.gameMap = gameMap;
         this.fenPropMap = fenPropMap;
+        this.dumpType = dumpType;
     }  
      public void run() {  
     	 try
@@ -39,7 +41,8 @@ public class FENIndexDataGenerator implements Runnable {
 					else if(isValidDate && !line.startsWith("{"))
 					{
 						FEN fen = new FEN(line);
-						if(fen.isValidFen() && fenMap.containsKey(fen.JustFen))
+						int moveType = fen.isWhiteMove ? 1 : 2;
+						if(moveType == dumpType && fen.isValidFen() && fenMap.containsKey(fen.JustFen))
 						{
 							try
 							{

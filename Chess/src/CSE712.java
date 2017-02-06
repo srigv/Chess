@@ -280,6 +280,7 @@ public class CSE712 {
 			fileArray = new File[] { input };
 		}
 
+		Arrays.sort(fileArray); //sorting files by name
 		System.out.println("Reading games..." + fileArray.length);
 
 		fileCount = fileArray.length;
@@ -347,6 +348,11 @@ public class CSE712 {
 			
 			
 			System.out.println("collected FEN count : "+fenCountMap.size());
+			
+			if(fenCountMap.size() == 0)
+			{
+				return;
+			}
 
 			ExecutorService executor = Executors.newFixedThreadPool(16);
 
@@ -502,40 +508,43 @@ public class CSE712 {
 			ConcurrentHashMap<String, Boolean> fenIndexMap = new ConcurrentHashMap<String, Boolean>();
 			ConcurrentHashMap<String, Integer> gameIndexMap = new ConcurrentHashMap<String, Integer>();
 			ConcurrentHashMap<String, FENProp> fenPropMap = new ConcurrentHashMap<String, FENProp>();
+			ConcurrentHashMap<String, GameProp> gamePropMap = new ConcurrentHashMap<String, GameProp>();
 
 			File[] arr = FenDumpDir.listFiles();
 			Arrays.sort(arr); // sorting files to keep it consistent across the
 								// system
 			int count = 0;
-			for (File f : arr) {
-				try {
-					System.out.println("reading FEN from : "+f.getName());
-					br = new BufferedReader(new FileReader(f));
-					String line = "";
-					while ((line = br.readLine()) != null) {
-						if (count < start) {
-							count++;
-							continue;
-						}
+			if (DumpType != 3) {
+				for (File f : arr) {
+					try {
+						System.out.println("reading FEN from : "+f.getName());
+						br = new BufferedReader(new FileReader(f));
+						String line = "";
+						while ((line = br.readLine()) != null) {
+							if (count < start) {
+								count++;
+								continue;
+							}
 
-						if (count >= start && count <= end) {
-							fenIndexMap.put(line.trim(), true);
-							fenPropMap.put(line.trim(), new FENProp());
+							if (count >= start && count <= end) {
+								fenIndexMap.put(line.trim(), true);
+								fenPropMap.put(line.trim(), new FENProp());
+							}
+							
+							count++;
 						}
 						
-						count++;
+						if(count > end)
+						{
+							System.out.println("Done collecting nessecary FEN");
+							break;							
+						}
+					} catch (Exception e) {
+						System.out.println(e.getMessage() + " at " + e.getStackTrace());
 					}
-					
-					if(count > end)
-					{
-						System.out.println("Done collecting nessecary FEN");
-						break;							
-					}
-				} catch (Exception e) {
-					System.out.println(e.getMessage() + " at " + e.getStackTrace());
 				}
 			}
-
+			
 			int gameIndex = 1;
 			arr = GameDumpDir.listFiles();
 			Arrays.sort(arr); // even games has to be in the same order,
@@ -546,7 +555,10 @@ public class CSE712 {
 					br = new BufferedReader(new FileReader(f));
 					String line = "";
 					while ((line = br.readLine()) != null) {
+						GameProp gp = new GameProp();
+						gp.id = gameIndex;
 						gameIndexMap.put(line.trim(), gameIndex);
+						gamePropMap.put(line.trim(), gp);
 						gameIndex++;
 					}
 				} catch (Exception e) {
@@ -556,21 +568,47 @@ public class CSE712 {
 			
 			System.out.println("collected FEN count : "+fenPropMap.size());
 			System.out.println("collected Game count : "+gameIndexMap.size());
+			
+			if((fenPropMap.size() == 0 && gamePropMap.size() == 0) || gameIndexMap.size() == 0)
+			{
+				return;
+			}
 
-			ExecutorService executor = Executors.newFixedThreadPool(16);
-
-			for (File f : fileArray) {
-				try {
-					Runnable worker = new FENIndexDataGenerator(f, fenIndexMap, gameIndexMap, fenPropMap);
-					executor.execute(worker);
-				} catch (Exception e) {
-					System.out.println(Arrays.toString(e.getStackTrace()) + "  " + e.getMessage());
-				} finally {
-					if (br != null) {
-						br.close();
+			ExecutorService executor = Executors.newFixedThreadPool(1);
+			
+			
+			if(DumpType != 3)
+			{
+				for (File f : fileArray) {
+					try {
+						Runnable worker = new FENIndexDataGenerator(f, fenIndexMap, gameIndexMap, fenPropMap,DumpType);
+						executor.execute(worker);
+					} catch (Exception e) {
+						System.out.println(Arrays.toString(e.getStackTrace()) + "  " + e.getMessage());
+					} finally {
+						if (br != null) {
+							br.close();
+						}
 					}
 				}
 			}
+			else
+			{
+				System.out.println("Processing only game data");
+				for (File f : fileArray) {
+					try {
+						Runnable worker = new GamesIndexDataCollector(f, gamePropMap);;
+						executor.execute(worker);
+					} catch (Exception e) {
+						System.out.println(Arrays.toString(e.getStackTrace()) + "  " + e.getMessage());
+					} finally {
+						if (br != null) {
+							br.close();
+						}
+					}
+				}
+			}
+			
 
 			executor.shutdown();
 			while (!executor.isTerminated()) {
@@ -578,12 +616,19 @@ public class CSE712 {
 
 			try {
 
-				FileOutputStream out_1 = new FileOutputStream(
-						fenWriteDir.getAbsolutePath() + File.separator + "FEN" + ".txt");
-				bw_fen = new BufferedWriter(new OutputStreamWriter(out_1));
-				WriteFENToFileWithGameIndexMap(bw_fen, fenPropMap);
-				bw_fen.close();
-				fenPropMap.clear();
+				if(DumpType != 3)
+				{
+					WriteFENToFileWithGameIndexMap(fenPropMap);
+					//bw_fen.close();
+					fenPropMap.clear();
+				}
+				else
+				{
+					WriteGameToFile(gamePropMap);
+					//bw_fen.close();
+					gamePropMap.clear();
+				}
+				
 
 				System.out.println("Done with process");
 			} catch (Exception e) {
@@ -1121,7 +1166,7 @@ public class CSE712 {
 		}
 	}
 
-	public static void WriteFENToFileWithGameIndexMap(BufferedWriter bw, ConcurrentHashMap<String, FENProp> map) {
+	public static void WriteFENToFileWithGameIndexMap(ConcurrentHashMap<String, FENProp> map) {
 		try {
 			int fenCount = 0;
 			int fenBatchSize = 100000;
@@ -1188,9 +1233,68 @@ public class CSE712 {
 					out_1 = new FileOutputStream(fenFileName);
 					bw = new BufferedWriter(new OutputStreamWriter(out_1));
 					fileStart = true;
+					bw.write("[");
 					System.out.println("writing FENs to " + fenFileName);
 				} else {
 					bw.write("]}\n");
+					bw.newLine();
+				}
+
+			}
+
+			bw.write("]");
+			bw.flush();
+			// bw.write("Missed game count : "+missedGameCount);
+			bw.close();
+
+			map.clear(); // saving memory by clearing the unused map
+			PrintMemory();
+
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+		}
+	}
+	
+	public static void WriteGameToFile(ConcurrentHashMap<String, GameProp> map) {
+		try {
+			
+			int gameCount = 0;
+			int gameBatchSize = 100000;
+
+			String gameFileName = fenWriteDir.getAbsolutePath() + File.separator + "Game_"+"0.txt";
+			FileOutputStream out_1 = new FileOutputStream(gameFileName);
+			bw = new BufferedWriter(new OutputStreamWriter(out_1));
+
+			System.out.println("writing Games to " + gameFileName);
+
+			Boolean fileStart = true;
+			bw.write("[");
+			for (Map.Entry<String, GameProp> pair : map.entrySet()) {
+				if(!fileStart)
+				{
+					bw.write(",");
+				}
+				
+				if(fileStart)
+				{
+					fileStart = false;
+				}
+				bw.write(pair.getValue().toString());
+
+				gameCount++;
+
+				if (gameCount % gameBatchSize == 0) {
+					bw.write("]");
+					bw.flush();
+					bw.close();
+					gameFileName = fenWriteDir.getAbsolutePath() + File.separator + "Game_"+"" + (gameCount / gameBatchSize)
+							+ ".txt";
+					out_1 = new FileOutputStream(gameFileName);
+					bw = new BufferedWriter(new OutputStreamWriter(out_1));
+					fileStart = true;
+					bw.write("[");
+					System.out.println("writing Games to " + gameFileName);
+				} else {
 					bw.newLine();
 				}
 

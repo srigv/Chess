@@ -1,3 +1,4 @@
+import java.util.Arrays;
 
 public class TestCases {
 
@@ -15,6 +16,18 @@ public class TestCases {
 		System.out.println(f.JustFen);
 		System.out.println(f.moveNum);
 		System.out.println(f.MovePlayed);
+		
+		GameProp prop = new GameProp();
+		prop.BlackELO = 1000;
+		prop.BlackPlayer = "test1";
+		prop.id = 100;
+		prop.TournmentDate = "2011-98-89";
+		prop.TournmentName = "test";
+		prop.WhiteELO = 1890;
+		prop.WhitePlayer = "test2";
+		
+		System.out.println(Utils.GetSolrDateString(("{2201,2121;A40;tourn (),2011.09.25}").substring(1, ("{2201,2121;A40;tourn (),2011.09.25}").length()-1)));
+		System.out.println(Arrays.toString(Utils.GetEloRatingsFromString("2201,2121;A40;tourn (),2011.09.25")));
 	}
 
 }

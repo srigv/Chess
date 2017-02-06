@@ -1,6 +1,8 @@
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
@@ -9,6 +11,7 @@ public class Utils {
 	public static HashMap<String,Integer> symbolTable = new HashMap<String,Integer>();
 	public static Pattern NumberPattern = Pattern.compile("^[0-9]+$");
 	private static AtomicInteger FileCount = new AtomicInteger();
+	private static Calendar c = Calendar.getInstance();
 	public static HashMap<GamePropEum,String> GetGameProps(String str)
 	{
 		HashMap<GamePropEum,String> map = new HashMap<GamePropEum,String>();
@@ -53,6 +56,86 @@ public class Utils {
 		}		
 		
 		return map;
+	}
+	
+	public static int[] GetEloRatingsFromString(String str)
+	{
+		int[] arr = new int[2];
+		String[] parts = str.split(";");
+		if(parts.length == 3)
+		{
+			String[] ratings = parts[0].split(",");
+			if(ratings.length == 2)
+			{
+				if(ratings[0].matches("-?\\d+(\\.\\d+)?"))
+				{
+					try{
+						arr[0] = Integer.parseInt(ratings[0].trim());
+					}
+					catch(Exception e)
+					{
+						//do nothing for now
+					}
+				}
+				
+				if(ratings[1].matches("-?\\d+(\\.\\d+)?"))
+				{
+					try{
+						arr[1] = Integer.parseInt(ratings[1].trim());
+					}
+					catch(Exception e)
+					{
+						//do nothing for now
+					}
+				}
+			}
+		}
+		
+		return arr;		
+	}
+	
+	public static String GetSolrDateString(String str)
+	{
+		String[] parts = str.split(";");
+		if(parts.length == 3)
+		{
+			String[] extras = parts[2].split(",");
+			if(extras.length == 2)
+			{
+				String[] dateParts = extras[1].trim().split("\\.");
+				if(dateParts.length == 3)
+				{
+					int year = 1000;
+					int month = 1;
+					int day = 1;
+					
+					if(dateParts[0].matches("-?\\d+(\\.\\d+)?"))
+					{
+						year = Integer.parseInt(dateParts[0]);
+					}
+					
+					if(dateParts[1].matches("-?\\d+(\\.\\d+)?"))
+					{
+						month = Integer.parseInt(dateParts[1]);
+					}
+					
+					if(dateParts[2].matches("-?\\d+(\\.\\d+)?"))
+					{
+						day = Integer.parseInt(dateParts[2]);
+					}
+					
+					c.set(year, month-1, day);
+					
+					
+					SimpleDateFormat out = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+					try {
+			            return out.format(c.getTime());
+			        } catch (Exception ignore) { }
+				}
+			}						
+		}
+		
+	    return "1000-01-01T17:33:18Z";
 	}
 	
 	public static String[] FenDivided(String str)
