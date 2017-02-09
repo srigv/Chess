@@ -624,6 +624,7 @@ public class CSE712 {
 				}
 				else
 				{
+					System.out.println("Done game count: "+gamePropMap.size());
 					WriteGameToFile(gamePropMap);
 					//bw_fen.close();
 					gamePropMap.clear();
@@ -1279,7 +1280,14 @@ public class CSE712 {
 				{
 					fileStart = false;
 				}
-				bw.write(pair.getValue().toString());
+				try{
+					bw.write(pair.getValue().toString());
+				}
+				catch(Exception e)
+				{
+					//do nothing
+				}
+				
 
 				gameCount++;
 
@@ -1293,6 +1301,7 @@ public class CSE712 {
 					bw = new BufferedWriter(new OutputStreamWriter(out_1));
 					fileStart = true;
 					bw.write("[");
+					System.out.println("finished writing "+gameCount);
 					System.out.println("writing Games to " + gameFileName);
 				} else {
 					bw.newLine();

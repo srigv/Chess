@@ -11,6 +11,7 @@ public class Utils {
 	public static HashMap<String,Integer> symbolTable = new HashMap<String,Integer>();
 	public static Pattern NumberPattern = Pattern.compile("^[0-9]+$");
 	private static AtomicInteger FileCount = new AtomicInteger();
+	private static AtomicInteger MissedRecords = new AtomicInteger();
 	private static Calendar c = Calendar.getInstance();
 	public static HashMap<GamePropEum,String> GetGameProps(String str)
 	{
@@ -188,50 +189,6 @@ public class Utils {
 					arr[3] = fenParts[7].trim();
 				}
 			}
-			
-//			if(str.contains("- -"))
-//			{
-//				String[] parts = str.split("- -");
-//				if(parts.length == 2)
-//				{
-//					String[] first = parts[0].trim().split(" ");
-//					if(first.length >= 2)
-//					{
-//						arr[0] = first[0].trim();
-//						arr[1] = first[1].trim();
-//						arr[2] = "";
-//					}
-//					
-//					
-//					String[] second = parts[1].trim().split(" ");
-//					if(second.length == 2)
-//					{
-//						arr[3] = second[1].trim();
-//					}					
-//				}
-//			}
-//			else if(str.contains("-"))
-//			{
-//				String[] parts = new String[2];
-//				
-//				if(parts.length == 2)
-//				{
-//					String[] first = parts[0].trim().split(" ");
-//					if(first.length == 3)
-//					{
-//						arr[0] = first[0].trim();
-//						arr[1] = first[1].trim();
-//						arr[2] = first[2].trim();
-//					}
-//					
-//					
-//					String[] second = parts[1].trim().split(" ");
-//					if(second.length == 2)
-//					{
-//						arr[3] = second[1].trim();
-//					}					
-//				}
-//			}
 		}
 		catch(Exception e)
 		{
@@ -255,6 +212,23 @@ public class Utils {
 	public static void ResetFileCount()
 	{
 		FileCount.set(0);
+	}
+	
+	
+	
+	public static int GetMissedRecordCount()
+	{
+		return MissedRecords.get();
+	}
+	
+	public static void ResetMissedRecordCount()
+	{
+		MissedRecords.set(0);
+	}
+	
+	public static void IncrementMissedRecordCount()
+	{
+		MissedRecords.addAndGet(1);
 	}
 	
 	public static String GetQuotedValue(String inp)
@@ -288,6 +262,8 @@ public class Utils {
 
 		//Print Maximum available memory
 		System.out.println("Max Memory:" + runtime.maxMemory() / mb);
+		
+		System.out.println("Missed records: "+Utils.GetMissedRecordCount());
 		
 		
 	}

@@ -38,6 +38,10 @@ public class GamesIndexDataCollector implements Runnable {
 							
 							gamePropMap.put(str.trim(), gp);
 						}
+						else
+						{
+							Utils.IncrementMissedRecordCount();
+						}
 						
 					}
 					else if(line.startsWith("{"))
